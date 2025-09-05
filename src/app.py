@@ -1,325 +1,404 @@
-from flask import Flask, request, jsonify, Response, g
-from flask_cors import CORS
-from loguru import logger
-from utility import save_temp_audio, cleanup_temp_file, validate_and_decode_base64_audio, encode_audio_base64
-from requestID import reqID
-from voiceMap import VOICE_BASE64_MAP
-from server import run_audio_pipeline
-import uuid
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import asyncio
+import aiofiles
+import uvloop
 import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import threading
 import queue
-from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
+import time
+import uuid
 import io
 import traceback
-from wittyMessages import get_validation_error, get_witty_error
-import time
-import asyncio
-import atexit
+import tempfile
 import os
+from loguru import logger
+import atexit
+from utility import validate_and_decode_base64_audio, encode_audio_base64
+from voiceMap import VOICE_BASE64_MAP
+from server import run_audio_pipeline
+from wittyMessages import get_validation_error, get_witty_error
 
-request_queue = None
-response_queue = None
-worker_process = None
-worker_thread = None
-_worker_initialized = False
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-def is_daemon_process():
-    try:
-        import multiprocessing
-        return multiprocessing.current_process().daemon
-    except:
-        return False
+class ContentItem(BaseModel):
+    type: str
+    text: Optional[str] = None
+    voice: Optional[Dict[str, Any]] = None
+    audio_text: Optional[str] = None
+    audio: Optional[Dict[str, str]] = None
 
-def init_worker():
-    """Initialize the worker process or thread"""
-    global request_queue, response_queue, worker_process, worker_thread, _worker_initialized
+class Message(BaseModel):
+    role: str
+    content: List[ContentItem]
+
+class AudioRequest(BaseModel):
+    messages: List[Message]
+
+class WorkerPool:
+    def __init__(self, num_workers=None):
+        self.num_workers = num_workers or min(32, (os.cpu_count() or 1) + 4)
+        self.process_pool = ProcessPoolExecutor(max_workers=self.num_workers)
+        self.thread_pool = ThreadPoolExecutor(max_workers=self.num_workers * 2)
+        self.request_queues = []
+        self.response_queues = []
+        self.workers = []
+        self._initialize_workers()
+        atexit.register(self.cleanup)
+
+    def _initialize_workers(self):
+        try:
+            from model_server import model_worker
+            
+            for i in range(self.num_workers):
+                req_queue = mp.Queue(maxsize=100)
+                resp_queue = mp.Queue(maxsize=100)
+                
+                worker = mp.Process(
+                    target=model_worker,
+                    args=(req_queue, resp_queue),
+                    daemon=True
+                )
+                worker.start()
+                
+                self.request_queues.append(req_queue)
+                self.response_queues.append(resp_queue)
+                self.workers.append(worker)
+                
+            logger.info(f"Initialized {self.num_workers} workers")
+        except Exception as e:
+            logger.error(f"Failed to initialize workers: {e}")
+            raise
+
+    def get_least_busy_worker(self):
+        min_size = float('inf')
+        best_idx = 0
+        
+        for i, queue in enumerate(self.request_queues):
+            size = queue.qsize()
+            if size < min_size:
+                min_size = size
+                best_idx = i
+                if size == 0:
+                    break
+                    
+        return best_idx
+
+    async def process_request(self, request_data):
+        worker_idx = self.get_least_busy_worker()
+        req_queue = self.request_queues[worker_idx]
+        resp_queue = self.response_queues[worker_idx]
+        
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                self.thread_pool, req_queue.put, request_data
+            )
+            
+            result = await asyncio.get_event_loop().run_in_executor(
+                self.thread_pool, resp_queue.get
+            )
+            
+            return result
+        except Exception as e:
+            logger.error(f"Worker {worker_idx} error: {e}")
+            raise
+
+    def cleanup(self):
+        try:
+            for queue in self.request_queues:
+                try:
+                    queue.put("STOP", timeout=1)
+                except:
+                    pass
+            
+            for worker in self.workers:
+                if worker.is_alive():
+                    worker.join(timeout=2)
+                    if worker.is_alive():
+                        worker.terminate()
+            
+            self.process_pool.shutdown(wait=False)
+            self.thread_pool.shutdown(wait=False)
+            
+            logger.info("Worker pool cleanup completed")
+        except Exception as e:
+            logger.error(f"Cleanup error: {e}")
+
+class TempFileManager:
+    def __init__(self):
+        self.temp_files = {}
+        self.lock = threading.Lock()
+        self.cleanup_task = None
+
+    async def save_audio(self, audio_data: bytes, request_id: str, audio_type: str) -> str:
+        loop = asyncio.get_event_loop()
+        
+        def _save():
+            fd, path = tempfile.mkstemp(suffix=f"_{audio_type}.wav", prefix=f"{request_id}_")
+            with os.fdopen(fd, 'wb') as f:
+                f.write(audio_data)
+            return path
+        
+        path = await loop.run_in_executor(None, _save)
+        
+        with self.lock:
+            if request_id not in self.temp_files:
+                self.temp_files[request_id] = []
+            self.temp_files[request_id].append(path)
+        
+        return path
+
+    async def cleanup_request_files(self, request_id: str):
+        with self.lock:
+            files = self.temp_files.pop(request_id, [])
+        
+        if files:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self._cleanup_files, files)
+
+    def _cleanup_files(self, files):
+        for file_path in files:
+            try:
+                if os.path.exists(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup {file_path}: {e}")
+
+worker_pool = None
+temp_manager = TempFileManager()
+
+app = FastAPI(
+    title="Elixpo Audio API",
+    description="High-performance audio processing API",
+    version="2.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.on_event("startup")
+async def startup_event():
+    global worker_pool
+    worker_pool = WorkerPool()
+    logger.info("API server started successfully")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if worker_pool:
+        worker_pool.cleanup()
+
+@app.middleware("http")
+async def add_process_time_header(request, call_next):
+    start_time = time.time()
+    request_id = str(uuid.uuid4())
     
-    if _worker_initialized:
-        return
-        
-    try:
-        from model_server import model_worker
-        from model_service import init_model_service
-        
-        # Use threading if we're in a daemon process, otherwise use multiprocessing
-        if is_daemon_process():
-            logger.info("Running in daemon process, using threading for worker")
-            request_queue = queue.Queue()
-            response_queue = queue.Queue()
-            
-            # Wrap model_worker for threading
-            def thread_worker():
-                model_worker(request_queue, response_queue)
-            
-            worker_thread = threading.Thread(target=thread_worker, daemon=True)
-            worker_thread.start()
-        else:
-            logger.info("Running in main process, using multiprocessing for worker")
-            request_queue = mp.Queue()
-            response_queue = mp.Queue()
-            worker_process = mp.Process(target=model_worker, args=(request_queue, response_queue))
-            worker_process.start()
-        
-        init_model_service(request_queue, response_queue)
-        _worker_initialized = True
-        
-        # Register cleanup function
-        atexit.register(cleanup_worker)
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize worker: {e}")
-        raise
-
-def cleanup_worker():
-    """Clean up worker process or thread"""
-    global worker_process, worker_thread, request_queue
+    response = await call_next(request)
     
-    try:
-        if request_queue:
-            request_queue.put("STOP")
-        
-        if worker_process and worker_process.is_alive():
-            worker_process.join(timeout=5)
-            if worker_process.is_alive():
-                worker_process.terminate()
-        
-        if worker_thread and worker_thread.is_alive():
-            worker_thread.join(timeout=5)
-            
-    except Exception as e:
-        logger.error(f"Error cleaning up worker: {e}")
-
-def ensure_worker_initialized():
-    """Ensure worker is initialized before processing requests"""
-    if not _worker_initialized:
-        init_worker()
-
-app = Flask(__name__)
-CORS(app)
-
-@app.before_request
-def before_request():
-    g.request_id = reqID()
-    g.start_time = time.time()
-    # Initialize worker on first request
-    ensure_worker_initialized()
-
-@app.after_request
-def after_request(response):
-    process_time = time.time() - g.get('start_time', time.time())
+    process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
+    response.headers["X-Request-ID"] = request_id
+    
     return response
 
-@app.route("/", methods=["GET"])
-def health_check():
-    return jsonify({
+@app.get("/")
+async def health_check():
+    return {
         "status": "healthy",
+        "workers": worker_pool.num_workers if worker_pool else 0,
         "endpoints": {
             "GET": "/audio?text=your_text_here&system=optional_system_prompt&voice=optional_voice",
             "POST": "/audio"
         },
         "message": "All systems operational! 🚀"
-    })
+    }
 
-@app.route("/audio", methods=["GET", "POST"])
-def audio_endpoint():
-    request_id = g.request_id
-    if request.method == "GET":
-        try:
-            text = request.args.get("text")
-            system = request.args.get("system")
-            voice = request.args.get("voice")
-            voice_path = None
-            if VOICE_BASE64_MAP.get(voice):
-                named_voice_path = VOICE_BASE64_MAP.get(voice)
-                coded = encode_audio_base64(named_voice_path)
-                voice_path = save_temp_audio(coded, request_id, "clone")
-            else:
-                named_voice_path = VOICE_BASE64_MAP.get("alloy")
-                coded = encode_audio_base64(named_voice_path)
-                voice_path = save_temp_audio(coded, request_id, "clone")
-                
+@app.get("/health")
+async def health():
+    return {"status": "alive", "message": "Still breathing! 💨"}
 
-            if not text or not isinstance(text, str) or not text.strip():
-                return jsonify({"error": {"message": "Missing required 'text' parameter.", "code": 400}}), 400
+@app.get("/audio")
+async def audio_get_endpoint(
+    text: str,
+    system: Optional[str] = None,
+    voice: Optional[str] = None,
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    request_id = str(uuid.uuid4())
+    
+    try:
+        if not text or not text.strip():
+            raise HTTPException(status_code=400, detail="Missing required 'text' parameter")
 
-            result = asyncio.run(run_audio_pipeline(
-                reqID=request_id,
-                text=text,
-                system_instruction=system,
-                voice=voice_path
-            ))
+        voice_name = voice or "alloy"
+        voice_path = None
+        
+        if VOICE_BASE64_MAP.get(voice_name):
+            named_voice_path = VOICE_BASE64_MAP.get(voice_name)
+            coded = encode_audio_base64(named_voice_path)
+            voice_path = await temp_manager.save_audio(coded, request_id, "clone")
+        else:
+            named_voice_path = VOICE_BASE64_MAP.get("alloy")
+            coded = encode_audio_base64(named_voice_path)
+            voice_path = await temp_manager.save_audio(coded, request_id, "clone")
 
-            if result["type"] == "audio":
-                return Response(
-                    result["data"],
-                    mimetype="audio/wav",
-                    headers={
-                        "Content-Disposition": f"inline; filename={request_id}.wav",
-                        "Content-Length": str(len(result["data"]))
-                    }
-                )
-            elif result["type"] == "text":
-                return jsonify({"text": result["data"], "request_id": request_id})
-            else:
-                return jsonify({"error": {"message": result.get("message", "Unknown error"), "code": 500}}), 500
+        request_data = {
+            "reqID": request_id,
+            "text": text,
+            "system_instruction": system,
+            "voice": voice_path
+        }
 
-        except Exception as e:
-            logger.error(f"GET error: {traceback.format_exc()}")
-            return jsonify({"error": {"message": str(e), "code": 500}}), 500
+        result = await worker_pool.process_request(request_data)
+        
+        background_tasks.add_task(temp_manager.cleanup_request_files, request_id)
 
-    elif request.method == "POST":
-        try:
-            body = request.get_json(force=True)
-            messages = body.get("messages", [])
-            if not messages or not isinstance(messages, list):
-                return jsonify({"error": {"message": "Missing or invalid 'messages' in payload.", "code": 400}}), 400
+        if result["type"] == "audio":
+            return StreamingResponse(
+                io.BytesIO(result["data"]),
+                media_type="audio/wav",
+                headers={
+                    "Content-Disposition": f"inline; filename={request_id}.wav",
+                    "Content-Length": str(len(result["data"]))
+                }
+            )
+        elif result["type"] == "text":
+            return {"text": result["data"], "request_id": request_id}
+        else:
+            raise HTTPException(status_code=500, detail=result.get("message", "Unknown error"))
 
-            # Parse system and user message
-            system_instruction = None
-            user_content = None
-            for msg in messages:
-                if msg.get("role") == "system":
-                    for item in msg.get("content", []):
-                        if item.get("type") == "text":
-                            system_instruction = item.get("text")
-                elif msg.get("role") == "user":
-                    user_content = msg.get("content", [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"GET error for {request_id}: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-            if not user_content or not isinstance(user_content, list):
-                return jsonify({"error": {"message": "Missing or invalid 'content' in user message.", "code": 400}}), 400
+@app.post("/audio")
+async def audio_post_endpoint(
+    request: AudioRequest,
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    request_id = str(uuid.uuid4())
+    
+    try:
+        if not request.messages:
+            raise HTTPException(status_code=400, detail="Missing or invalid 'messages' in payload")
 
-            text = None
-            voice_name = "alloy"
-            voice_b64 = None
-            clone_audio_transcript = None
-            speech_audio_b64 = None
+        system_instruction = None
+        user_content = None
+        
+        for msg in request.messages:
+            if msg.role == "system":
+                for item in msg.content:
+                    if item.type == "text":
+                        system_instruction = item.text
+            elif msg.role == "user":
+                user_content = msg.content
 
-            for item in user_content:
-                if isinstance(item, dict):
-                    if item.get("type") == "text":
-                        text = item.get("text")
-                    elif item.get("type") == "voice":
-                        v = item.get("voice", {})
-                        if isinstance(v, dict):
-                            voice_name = v.get("name", "alloy")
-                            if v.get("data"):
-                                voice_b64 = v.get("data")
-                    elif item.get("type") == "clone_audio_transcript":
-                        clone_audio_transcript = item.get("audio_text")
-                    elif item.get("type") == "speech_audio":
-                        speech_audio_b64 = item.get("audio", {}).get("data")
+        if not user_content:
+            raise HTTPException(status_code=400, detail="Missing or invalid 'content' in user message")
 
-            if not text or not isinstance(text, str) or not text.strip():
-                return jsonify({"error": {"message": "Missing required 'text' in content.", "code": 400}}), 400
+        text = None
+        voice_name = "alloy"
+        voice_b64 = None
+        clone_audio_transcript = None
+        speech_audio_b64 = None
 
-            # If both voice_b64 and a non-default voice_name are provided, error
-            if voice_b64 and voice_name and voice_name != "alloy":
-                return jsonify({"error": {"message": "Provide either 'voice.data' (base64) or 'voice.name', not both.", "code": 400}}), 400
+        for item in user_content:
+            if item.type == "text":
+                text = item.text
+            elif item.type == "voice" and item.voice:
+                voice_name = item.voice.get("name", "alloy")
+                voice_b64 = item.voice.get("data")
+            elif item.type == "clone_audio_transcript":
+                clone_audio_transcript = item.audio_text
+            elif item.type == "speech_audio" and item.audio:
+                speech_audio_b64 = item.audio.get("data")
 
-            # Validate and save base64 audio if present
-            voice_path = None
-            speech_audio_path = None
+        if not text or not text.strip():
+            raise HTTPException(status_code=400, detail="Missing required 'text' in content")
 
-            if voice_b64:
-                try:
-                    decoded = validate_and_decode_base64_audio(voice_b64, max_duration_sec=5)
-                    voice_path = save_temp_audio(decoded, request_id, "clone")
-                except Exception as e:
-                    return jsonify({"error": {"message": f"Invalid voice audio: {e}", "code": 400}}), 400
-            elif voice_name and not voice_b64:
-                try:
-                    if VOICE_BASE64_MAP.get(voice_name):
-                        named_voice_path = VOICE_BASE64_MAP.get(voice_name)
-                        coded = encode_audio_base64(named_voice_path)
-                        voice_path = save_temp_audio(coded, request_id, "clone")
-                    else:
-                        named_voice_path = VOICE_BASE64_MAP.get("alloy")
-                        coded = encode_audio_base64(named_voice_path)
-                        voice_path = save_temp_audio(coded, request_id, "clone")
-                except Exception as e:
-                    return jsonify({"error": {"message": f"Invalid voice name: {e}", "code": 400}}), 400
-            else:
-                named_voice_path = VOICE_BASE64_MAP.get("alloy")
-                coded = encode_audio_base64(named_voice_path)
-                voice_path = save_temp_audio(coded, request_id, "clone")
+        if voice_b64 and voice_name and voice_name != "alloy":
+            raise HTTPException(status_code=400, detail="Provide either 'voice.data' (base64) or 'voice.name', not both")
 
-            if speech_audio_b64:
-                try:
-                    decoded = validate_and_decode_base64_audio(speech_audio_b64, max_duration_sec=60)
-                    speech_audio_path = save_temp_audio(decoded, request_id, "speech")
-                except Exception as e:
-                    return jsonify({"error": {"message": f"Invalid speech_audio: {e}", "code": 400}}), 400
+        voice_path = None
+        speech_audio_path = None
 
-            # If voice_path is present, ignore voice_name param
+        if voice_b64:
+            try:
+                decoded = validate_and_decode_base64_audio(voice_b64, max_duration_sec=5)
+                voice_path = await temp_manager.save_audio(decoded, request_id, "clone")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid voice audio: {e}")
+        else:
+            voice_file = VOICE_BASE64_MAP.get(voice_name) or VOICE_BASE64_MAP.get("alloy")
+            coded = encode_audio_base64(voice_file)
+            voice_path = await temp_manager.save_audio(coded, request_id, "clone")
 
-            result = asyncio.run(run_audio_pipeline(
-                reqID=request_id,
-                text=text,
-                voice=voice_path,
-                synthesis_audio_path=speech_audio_path,
-                clone_audio_transcript=clone_audio_transcript,
-                system_instruction=system_instruction,
-            ))
+        if speech_audio_b64:
+            try:
+                decoded = validate_and_decode_base64_audio(speech_audio_b64, max_duration_sec=60)
+                speech_audio_path = await temp_manager.save_audio(decoded, request_id, "speech")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid speech_audio: {e}")
 
-            if result["type"] == "audio":
-                return Response(
-                    result["data"],
-                    mimetype="audio/wav",
-                    headers={
-                        "Content-Disposition": f"inline; filename={request_id}.wav",
-                        "Content-Length": str(len(result["data"]))
-                    }
-                )
-            elif result["type"] == "text":
-                return jsonify({"text": result["data"], "request_id": request_id})
-            else:
-                return jsonify({"error": {"message": result.get("message", "Unknown error"), "code": 500}}), 500
+        request_data = {
+            "reqID": request_id,
+            "text": text,
+            "voice": voice_path,
+            "synthesis_audio_path": speech_audio_path,
+            "clone_audio_transcript": clone_audio_transcript,
+            "system_instruction": system_instruction,
+        }
 
-        except Exception as e:
-            logger.error(f"POST error: {traceback.format_exc()}")
-            return jsonify({"error": {"message": str(e), "code": 500}}), 500
-        finally:
-            cleanup_temp_file(request_id)
-            
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "alive", "message": "Still breathing! 💨"}), 200
+        result = await worker_pool.process_request(request_data)
+        
+        background_tasks.add_task(temp_manager.cleanup_request_files, request_id)
 
-@app.errorhandler(400)
-def bad_request(e):
-    logger.warning(f"400 error: {str(e)}")
-    return jsonify({"error": {"message": get_validation_error(), "code": 400}}), 400
+        if result["type"] == "audio":
+            return StreamingResponse(
+                io.BytesIO(result["data"]),
+                media_type="audio/wav",
+                headers={
+                    "Content-Disposition": f"inline; filename={request_id}.wav",
+                    "Content-Length": str(len(result["data"]))
+                }
+            )
+        elif result["type"] == "text":
+            return {"text": result["data"], "request_id": request_id}
+        else:
+            raise HTTPException(status_code=500, detail=result.get("message", "Unknown error"))
 
-@app.errorhandler(500)
-def internal_error(e):
-    logger.error(f"Unhandled 500 exception: {traceback.format_exc()}")
-    return jsonify({"error": {"message": get_witty_error(), "code": 500}}), 500
-
-@app.errorhandler(404)
-def not_found(e):
-    logger.info(f"404 error: {request.url}")
-    return jsonify({"error": {"message": "This endpoint went on vacation and forgot to leave a forwarding address! 🏖️", "code": 404}}), 404
-
-@app.errorhandler(405)
-def method_not_allowed(e):
-    logger.info(f"405 error: {request.method} on {request.url}")
-    return jsonify({"error": {"message": "That HTTP method is not invited to this party! Try a different one! 🎉", "code": 405}}), 405
-
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"POST error for {request_id}: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
+    import uvicorn
+    
     mp.set_start_method('spawn', force=True)
-    host = "0.0.0.0"
-    port = 8000
-    logger.info(f"Starting Elixpo Audio API Server at {host}:{port}")
-
-    # Initialize worker when running directly
-    init_worker()
-
-    try:
-        app.run(host=host, port=port, debug=False, threaded=True)
-    finally:
-        cleanup_worker()
+    
+    config = uvicorn.Config(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        workers=1,
+        loop="uvloop",
+        log_level="info",
+        access_log=False,
+        server_header=False,
+        date_header=False
+    )
+    
+    server = uvicorn.Server(config)
+    server.run()
