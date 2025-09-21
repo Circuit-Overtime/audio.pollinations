@@ -164,9 +164,16 @@ class HiggsAudioConfig(PretrainedConfig):
 
         if isinstance(text_config, dict):
             text_config["model_type"] = text_config["model_type"] if "model_type" in text_config else "llama"
+            if "rope_scaling" in text_config and isinstance(text_config["rope_scaling"], dict):
+                rope_scaling = text_config["rope_scaling"]
+                if "rope_type" in rope_scaling and rope_scaling["rope_type"] in ["linear", "llama3"]:
+                    # Map llama3 to dynamic type since it's a more advanced scaling method
+                    rope_type = "dynamic" if rope_scaling["rope_type"] == "llama3" else rope_scaling["rope_type"]
+                    text_config["rope_scaling"] = {
+                        "type": rope_type,
+                        "factor": rope_scaling.get("factor", 1.0)
+                    }
             text_config = CONFIG_MAPPING[text_config["model_type"]](**text_config)
-        elif text_config is None:
-            text_config = CONFIG_MAPPING["llama"]()
 
         assert audio_adapter_type in [
             "stack",

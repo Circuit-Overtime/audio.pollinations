@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Union
 from copy import deepcopy
 from transformers import AutoTokenizer, AutoProcessor
-from transformers.cache_utils import StaticCache
+from transformers.cache_utils import DynamicCache
 from transformers.generation.streamers import BaseStreamer
 from transformers.generation.stopping_criteria import StoppingCriteria
 from dataclasses import asdict
@@ -237,7 +237,7 @@ class HiggsAudioServeEngine:
             cache_config.num_hidden_layers += len(self.model.config.audio_dual_ffn_layers)
         # A list of KV caches for different lengths
         self.kv_caches = {
-            length: StaticCache(
+            length: DynamicCache(
                 config=cache_config,
                 max_batch_size=1,
                 max_cache_len=length,

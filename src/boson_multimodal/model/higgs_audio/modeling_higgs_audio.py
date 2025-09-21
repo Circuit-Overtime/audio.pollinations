@@ -24,7 +24,7 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
 )
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
-from transformers.cache_utils import Cache, DynamicCache, StaticCache
+from transformers.cache_utils import Cache, DynamicCache
 from transformers.generation import GenerationMixin, GenerationConfig, LogitsProcessorList, StoppingCriteriaList
 from transformers.generation.utils import GenerateNonBeamOutput
 from transformers.utils import logging, ModelOutput
@@ -483,7 +483,7 @@ class HiggsAudioDualFFNDecoderLayer(nn.Module):
         """
         residual = hidden_states
         target_length = hidden_states.shape[1]
-        use_static_cache = isinstance(past_key_value, StaticCache)
+        use_static_cache = isinstance(past_key_value, DynamicCache)
         decode_stage = hidden_states.shape[1] == 1
         if is_using_cuda_graph:
             assert decode_stage and use_static_cache, (
@@ -817,8 +817,8 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
         self.padding_idx = config.pad_token_id
         self.audio_in_token_idx = config.audio_in_token_idx
         self.audio_out_token_idx = config.audio_out_token_idx
-        self.audio_out_bos_token_id = config.audio_out_bos_token_id if "audio_out_bos_token_id" in config else None
-        self.audio_eos_token_id = config.audio_eos_token_id if "audio_eos_token_id" in config else None
+        self.audio_out_bos_token_id = config.audio_out_bos_token_id if hasattr(config, "audio_out_bos_token_id") else None
+        self.audio_eos_token_id = config.audio_eos_token_id if hasattr(config, "audio_eos_token_id") else None
         self.vocab_size = config.text_config.vocab_size
         self.audio_num_codebooks = config.audio_num_codebooks
         self.use_delay_pattern = config.use_delay_pattern
@@ -877,7 +877,11 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
 
         self.decode_graph_runners = defaultdict(dict[bool, CUDAGraphRunner])
         self.norm = LlamaRMSNorm(config.text_config.hidden_size, eps=config.text_config.rms_norm_eps)
-        self.rotary_emb = LlamaRotaryEmbedding(config=config.text_config)
+        self.rotary_emb = LlamaRotaryEmbedding(
+            config.text_config.hidden_size // config.text_config.num_attention_heads,
+            max_position_embeddings=config.text_config.max_position_embeddings,
+            base=config.text_config.rope_theta,
+        )
 
         if not config.skip_audio_tower:
             self.audio_tower = HiggsAudioEncoder(config.audio_encoder_config)
@@ -999,7 +1003,7 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-        using_static_cache = isinstance(past_key_values, StaticCache)
+        using_static_cache = isinstance(past_key_values, DynamicCache)
 
         # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
         if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
@@ -1294,7 +1298,7 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
             cache_position = torch.arange(
                 past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device
             )
-            if isinstance(past_key_values, StaticCache) and past_seen_tokens >= past_key_values.get_max_cache_shape():
+            if isinstance(past_key_values, DynamicCache) and past_seen_tokens >= past_key_values.get_max_cache_shape():
                 raise ValueError(
                     f"The current sequence length ({past_seen_tokens}) exceeds "
                     f"the maximum cache shape. "
@@ -1302,7 +1306,7 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
                 )
 
         # Use torch compile
-        use_static_cache = isinstance(past_key_values, StaticCache)
+        use_static_cache = isinstance(past_key_values, DynamicCache)
 
         # Apply the LLM component
         causal_mask = self._update_causal_mask(
