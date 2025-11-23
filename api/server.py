@@ -25,6 +25,7 @@ logger = logging.getLogger("elixpo-audio")
 POLLINATIONS_TOKEN = os.getenv("POLLI_TOKEN")
 MODEL = os.getenv("MODEL")
 REFERRER = os.getenv("REFERRER")
+print(f"Token: {POLLINATIONS_TOKEN} Model: {MODEL} Referrer: {REFERRER}")
 POLLINATIONS_ENDPOINT = "https://enter.pollinations.ai/api/generate/v1/chat/completions"
 
 
