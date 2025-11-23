@@ -1,4 +1,4 @@
-cd ~/scratch/audio.pollinations || { echo "Directory not found"; exit 1; }
+cd ~/audio.pollinations || { echo "Directory not found"; exit 1; }
 
 # Clear port 8000 if in use
 echo "Checking if port 8000 is in use and clearing it..."
