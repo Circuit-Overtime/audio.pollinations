@@ -8,7 +8,7 @@ import loggerConfig
 import random
 load_dotenv()
 
-async def generate_reply(prompt: str, max_tokens: Optional[int] = 60) -> str:
+async def generate_reply(prompt: str, max_tokens: Optional[int] = 2000) -> str:
     logger.info(f"Generating reply for prompt: {prompt} with max tokens: {max_tokens}")
     payload = {
         "model": os.getenv("MODEL"),
@@ -21,6 +21,7 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 60) -> str:
                     "Keep it concise, engaging, and natural sounding, as if chatting with a friend. "
                     "Do not write scripts, narration, or long paragraphs."
                     "don't add any emojis or any other thing than just alphabets and numbers"
+                    "Understand the intent and generate upto max n tokens understanding how much to generate for such a response"
                 )
             },
             {

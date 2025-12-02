@@ -7,7 +7,7 @@ from loguru import logger
 import time, resource
 import hashlib
 import string
-from config import TRANSCRIBE_MODEL_SIZE, MAX_CACHE_SIZE_MB, MAX_CACHE_FILES, MAX_CONCURRENT_OPERATIONS
+from config import TRANSCRIBE_MODEL_SIZE, MAX_CACHE_SIZE_MB, MAX_CACHE_FILES, MAX_CONCURRENT_OPERATIONS, AUDIO_MODEL_PATH, AUDIO_TOKENIZER_PATH
 import os
 import time
 from pathlib import Path
@@ -46,7 +46,7 @@ class ipcModules:
         self.serve_engine = HiggsAudioServeEngine(
             MODEL_PATH,
             AUDIO_TOKENIZER_PATH,
-            device=device,
+            device=device
         )
         self.executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_OPERATIONS, thread_name_prefix="AudioOp")
         self._gpu_lock = threading.Lock()
