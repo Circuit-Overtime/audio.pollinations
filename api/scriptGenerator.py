@@ -2,6 +2,7 @@ import requests
 from dotenv import load_dotenv
 from typing import Optional
 import os 
+from config import POLLINATIONS_ENDPOINT
 from loguru import logger
 import asyncio 
 import loggerConfig
@@ -43,7 +44,7 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 2000) -> str:
     }
 
     try:
-        response = requests.post("https://enter.pollinations.ai/api/generate/v1/chat/completions", headers=header, json=payload, timeout=30)
+        response = requests.post(POLLINATIONS_ENDPOINT, headers=header, json=payload, timeout=30)
         if response.status_code != 200:
             raise RuntimeError(f"Request failed: {response.status_code}, {response.text}")
 

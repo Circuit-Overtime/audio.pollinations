@@ -12,7 +12,6 @@ load_dotenv()
 async def getContentRefined(text: str, system: Optional[str] = None, max_tokens: Optional[int] = 300) -> dict:
     logger.info(f"Classifying intent and extracting content for prompt: {text} with max tokens: {max_tokens}")
 
-    # System instruction block (merged & detailed)
     system_instruction_content = ""
     if not system:
         system_instruction_content = (
@@ -29,9 +28,8 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
             "Use plain descriptive language without any formatting.\n\n"
             "When system is empty/none, your JSON output should include a third field 'system_instruction' with the instructions"
         )
-
     payload = {
-        "model": "mistral",
+        "model": os.getenv("MODEL"),
         "messages": [
             {
                 "role": "system",
@@ -39,7 +37,6 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
                     "You are an intent classification and content extraction AI. "
                     "Your output must be ONLY a JSON object with this schema:\n"
                     "{ \"intent\": \"DIRECT\" or \"REPLY\", \"content\": \"...\", \"system_instruction\": \"...\" }\n\n"
-
                     "Rules:\n"
                     "1. intent = \"DIRECT\" when the user wants you to speak/read specific text exactly as they provide it. "
                     "Look for patterns like:\n"
@@ -52,26 +49,22 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
                     "- Preserve the original meaning and wording exactly\n"
                     "- Add natural punctuation for speech flow (commas, periods, exclamation marks)\n"
                     "- Keep it clean and speech-ready without changing the user's intended words\n\n"
-
                     "2. intent = \"REPLY\" when the user is asking questions, making statements, or expecting a conversational response.\n"
                     "For REPLY intent:\n"
                     "- Generate a natural, engaging conversational response\n"
                     "- Make it sound like how a real person would respond in conversation\n"
                     "- Keep responses concise but expressive and personable\n"
                     "- Add appropriate emotional tone and natural speech patterns\n\n"
-
                     "3. For BOTH intents, ensure the content is optimized for text-to-speech:\n"
                     "- Use natural breathing pauses with commas\n"
                     "- Include appropriate punctuation for emphasis and flow\n"
                     "- Make sentences clear and easy to speak\n"
                     "- Avoid overly complex or run-on sentences\n"
                     "- Sound natural when spoken aloud\n\n"
-
                     "4. Be intelligent about context - understand the user's true intention beyond just keyword matching.\n"
                     "5. Do not output explanations or any text outside the JSON object. "
                     "Do not include emojis, special symbols, markdown, or formatting. "
                     "Strictly return only the JSON object with speech-optimized content.\n\n"
-
                     f"{system_instruction_content}"
                 )
             },
@@ -88,9 +81,13 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
         "max_tokens": max_tokens,
         "json": True,
     }
+    header = {
+        "Content-Type": "application/json",
+        "Authorization" : f"Bearer {os.getenv('POLLI_TOKEN')}"
+    }
 
     try:
-        response = requests.post("https://text.pollinations.ai/openai", json=payload, timeout=30)
+        response = requests.post("https://enter.pollinations.ai/api/generate/v1/chat/completions", json=payload, headers=header, timeout=30)
         if response.status_code != 200:
             raise RuntimeError(f"Request failed: {response.status_code}, {response.text}")
 

@@ -4,6 +4,7 @@ import os
 from loguru import logger
 import asyncio
 import random
+from config import POLLINATIONS_ENDPOINT
 load_dotenv()
 
 async def generate_higgs_system_instruction(text: str) -> str:
@@ -12,9 +13,7 @@ async def generate_higgs_system_instruction(text: str) -> str:
     base_instruction = """
 You are a system instruction generator for a speech synthesis model called Higgs.
 Analyze the user's text and create a scene description that sets the vocal environment, tone, and speaking style.
-
 Your job is to describe HOW the text should be spoken, not WHAT should be said.
-
 Focus on:
 - Voice texture and tone (warm, crisp, breathy, rich, smooth, raspy, etc.)
 - Emotional atmosphere (intimate, energetic, contemplative, dramatic, playful, etc.)  
@@ -22,10 +21,8 @@ Focus on:
 - Physical environment feel (cozy room, grand hall, quiet library, bustling cafe, etc.)
 - Vocal character (confident speaker, gentle storyteller, excited friend, wise mentor, etc.)
 - Natural human qualities (slight breathiness, warm chuckles, thoughtful pauses, etc.)
-
 Do NOT include any dialogue or text content - only describe the speaking environment and vocal approach.
 Use plain descriptive language without any formatting.
-
 Response format (exactly like this):
 (
 "You are a masterful voice performer bringing text to life with authentic human artistry."
@@ -45,7 +42,7 @@ Response format (exactly like this):
     }
 
     payload = {
-        "model": "mistral",
+        "model": os.getenv("MODEL"),
         "messages": [
             {"role": "system", "content": base_instruction},
             {"role": "user", "content": f"Text to analyze for vocal style: {text}"}
@@ -59,7 +56,7 @@ Response format (exactly like this):
     }
     
     try:
-        response = requests.post("https://enter.pollinations.ai/api/generate/v1/chat/completions", headers=header, json=payload, timeout=30)
+        response = requests.post(POLLINATIONS_ENDPOINT, headers=header, json=payload, timeout=30)
         response.raise_for_status()
         data = response.json()
 
