@@ -7,12 +7,13 @@ from loguru import logger
 import asyncio 
 import loggerConfig
 import random
+import math
 load_dotenv()
 
-async def generate_reply(prompt: str, max_tokens: Optional[int] = 2000) -> str:
+async def generate_reply(prompt: str, max_tokens: Optional[int] = 1500) -> str:
     logger.info(f"Generating reply for prompt: {prompt} with max tokens: {max_tokens}")
     payload = {
-        "model": os.getenv("MODEL"),
+        "model": "gemini",
         "messages": [
             {
                 "role": "system",
@@ -30,7 +31,7 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 2000) -> str:
                 "content": f"{prompt}"
             }
         ],
-        "temperature": 0.7,
+        "temperature": 1,
         "stream": False,
         "private": True,
         "referrer": "elixpoart",
@@ -68,9 +69,10 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 2000) -> str:
 
 if __name__ == "__main__":
     async def main():
-        user_prompt = "Hey, what's going on guys!! Do you wanna play a game of tug?"
+        user_prompt = "generate me a story about a brave little toaster for about 4 minutes of speech time"
         reply = await generate_reply(user_prompt)
 
         print("\n--- Generated Reply ---\n")
         print(reply)
+        print("Time Taken:- " + str(math.floor(len(" ".join(reply.split("\n")).strip().split(" ")) / 160)) + "minutes")
     asyncio.run(main())

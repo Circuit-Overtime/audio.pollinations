@@ -1,5 +1,3 @@
-"""Example for using HiggsAudio for generating both the transcript and audio in an interleaved manner."""
-
 from boson_multimodal.serve.serve_engine import HiggsAudioServeEngine, HiggsAudioResponse
 import torch
 import torchaudio
