@@ -92,7 +92,6 @@ async def run_audio_pipeline(
 
             assistant_message = response_data["choices"][0]["message"]
             messages.append(assistant_message)
-
             tool_calls = assistant_message.get("tool_calls")
             print(f"Tool calls {tool_calls} received for reqID={reqID}")
 
