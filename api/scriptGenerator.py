@@ -8,23 +8,32 @@ import asyncio
 import loggerConfig
 import random
 import math
+import time
 load_dotenv()
 
-async def generate_reply(prompt: str, max_tokens: Optional[int] = 1500) -> str:
+async def generate_reply(prompt: str, max_tokens: Optional[int] = 5000) -> str:
     logger.info(f"Generating reply for prompt: {prompt} with max tokens: {max_tokens}")
+    start_time = time.time()
     payload = {
-        "model": "gemini",
+        
+        "model": os.getenv("MODEL"),
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are a friendly and natural conversational AI. "
-                    "Your job is to generate a short, casual reply to the user's message. "
-                    "Keep it concise, engaging, and natural sounding, as if chatting with a friend. "
-                    "Do not write scripts, narration, or long paragraphs."
-                    "don't add any emojis or any other thing than just alphabets and numbers"
-                    "Understand the intent and generate upto max n tokens understanding how much to generate for such a response"
-                )
+                "content": """You are a friendly, natural conversational AI. 
+                Generate short, casual replies unless the user explicitly requests longer content.
+                No scripts, narration, essays, or long paragraphs unless the user directly asks for them.
+                Never use emojis or special characters—only plain text (letters, numbers, punctuation).
+                Token-length guide:
+                1 minute of spoken audio ≈ 150–180 tokens.
+                To estimate needed tokens: tokens = minutes * 160 (approx).
+                Never exceed the max_tokens for the request; scale down if needed.
+                If the user requests X minutes, generate only the amount of text that fits: 
+                min(X * 160, max_tokens).
+                If no duration is requested, keep replies short.
+                Always sound natural and human. 
+                Don't include any overhead in the response like -- "Sure! Here’s a story about a brave little toaster, for about four minutes of speech:"
+                """
             },
             {
                 "role": "user",
@@ -60,7 +69,8 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 1500) -> str:
                         reply = reply[:sponsor_start].strip()
         except Exception as e:
             raise RuntimeError(f"Unexpected response format: {data}") from e
-
+        elapsed_time = time.time() - start_time
+        logger.info(f"Reply generated in {elapsed_time:.2f} seconds")
         return reply.strip()
     except requests.exceptions.Timeout:
         logger.warning("Timeout occurred in generate_reply, returning generic system instruction.")
@@ -74,5 +84,5 @@ if __name__ == "__main__":
 
         print("\n--- Generated Reply ---\n")
         print(reply)
-        print("Time Taken:- " + str(math.floor(len(" ".join(reply.split("\n")).strip().split(" ")) / 160)) + "minutes")
+        print("Time Taken:- " + str((len(" ".join(reply.split("\n")).strip().split(" ")) / 160)) + "minutes")
     asyncio.run(main())

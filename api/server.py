@@ -15,6 +15,7 @@ from requestID import reqID
 from voiceMap import VOICE_BASE64_MAP
 from main_instruction import inst, user_inst
 from dotenv import load_dotenv
+
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +36,6 @@ async def run_audio_pipeline(
     clone_audio_transcript: Optional[str] = None,
     system_instruction: Optional[str] = None 
 ):
-    
     print(f"Recieved the parameters: {reqID}, {text}, {voice}, {synthesis_audio_path}, {clone_audio_transcript}, {system_instruction}")
     logger.info(f" [{reqID}] Starting Audio Pipeline")
     logger.info(f"Synthesis audio {synthesis_audio_path} | Clone Audio {voice}")
@@ -43,7 +43,6 @@ async def run_audio_pipeline(
     os.makedirs(higgs_dir, exist_ok=True)
     logger.info(f"[{reqID}] Created higgs directory: {higgs_dir}")    
     logger.info(f"[{reqID}] Saved base64 for the required media")
-
     try:
         messages = [
         {
@@ -57,9 +56,8 @@ async def run_audio_pipeline(
         }
     ]
         
-        max_iterations = 3
+        max_iterations = 1
         current_iteration = 0
-        
         while current_iteration < max_iterations:
             current_iteration += 1
             logger.info(f"Iteration {current_iteration} for reqID={reqID}")
@@ -80,7 +78,6 @@ async def run_audio_pipeline(
 
             headers = {"Content-Type": "application/json",
                        "Authorization": f"Bearer {POLLINATIONS_TOKEN}"}
-
             try:
                 response = requests.post(POLLINATIONS_ENDPOINT, headers=headers, json=payload)
                 response.raise_for_status()
@@ -89,7 +86,6 @@ async def run_audio_pipeline(
                 error_text = getattr(e.response, "text", "[No error text]")
                 logger.error(f"Pollinations API call failed: {e}\n{error_text}")
                 break
-
             assistant_message = response_data["choices"][0]["message"]
             messages.append(assistant_message)
             tool_calls = assistant_message.get("tool_calls")
@@ -265,8 +261,6 @@ if __name__ == "__main__":
         voice = "ash"
         synthesis_audio_path=None
         clone_audio_transcript = None
-        
-
         saved_base64_path_clone = None
         saved_base64_path_speech = None
         result = None
