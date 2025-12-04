@@ -32,7 +32,7 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 5000) -> str:
                 min(X * 160, max_tokens).
                 If no duration is requested, keep replies short.
                 Always sound natural and human. 
-                Don't include any overhead in the response like -- "Sure! Here’s a story about a brave little toaster, for about four minutes of speech:"
+                Don't include any overhead in the response just the raw response text.
                 """
             },
             {
