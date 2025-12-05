@@ -20,7 +20,7 @@ manager = ModelManager(address=("localhost", 6000), authkey=b"secret")
 manager.connect()
 service = manager.Service()
 
-async def generate_tts(text: str, requestID: str, system: Optional[str] = None, clone_text: Optional[str] = None, voice: Optional[str] = "alloy") -> tuple:
+async def generate_tts(text: str, requestID: str, system: Optional[str] = None, clone_text: Optional[str] = None, voice: Optional[str] = "alloy", timing_stat: Optional[object] = None) -> tuple:
     if timing_stat is None:
         timing_stat = TimingStats(requestID)
 

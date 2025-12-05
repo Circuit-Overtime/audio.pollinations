@@ -13,7 +13,7 @@ import time
 import asyncio
 import os
 import traceback
-from config import WORKERS
+from config import WORKERS, THREADS
 from gunicorn.app.base import BaseApplication
 from gunicorn.workers.sync import SyncWorker
 
@@ -313,13 +313,13 @@ def method_not_allowed(e):
 if __name__ == "__main__":
     host = "0.0.0.0"
     port = 8000
-    workers = int(os.getenv("WORKERS", 4))
+    workers = WORKERS
     logger.info(f"Starting Elixpo Audio API Server at {host}:{port} with {workers} workers")
     options = {
         "bind": f"{host}:{port}",
         "workers": workers,
         "worker_class": "gthread",
-        "threads" : WORKERS,
+        "threads" : THREADS,
         "timeout": 120,
         "accesslog": "-",
         "errorlog": "-",
