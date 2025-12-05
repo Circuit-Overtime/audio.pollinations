@@ -19,12 +19,7 @@ async def generate_stt(text: str, audio_base64_path: str, requestID: str, system
     intention_detection = await getContentRefined(f"This is the prompt and {text} and this is the audio transcript {transcription}", system)
     intention = intention_detection.get("intent")
     content = intention_detection.get("content")
-    if intention == "DIRECT":
-        return transcription.strip()
-    if intention == "REPLY":
-        return content
-    else:
-        return transcription.strip()
+    return content
 
 if __name__ == "__main__":
     async def main():

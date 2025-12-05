@@ -42,6 +42,7 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
                     "3. For both: optimize for TTS with clear punctuation, natural pauses, simple speakable phrasing.\n"
                     "4. Infer intent by context, not keywords alone.\n"
                     "5. Output ONLY the JSON object. No extra text, no emojis or formatting.\n\n"
+                    "6. If it's a REPLY don't send back the exact user prompt - generate a new natural response.\n\n"
                     f"{system_instruction_content}"
                 )
             },
