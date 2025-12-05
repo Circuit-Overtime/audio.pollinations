@@ -33,6 +33,7 @@ frozendict==2.4.6
 fsspec==2025.9.0
 future==1.0.0
 grpcio==1.75.0
+gunicorn==23.0.0
 h11==0.16.0
 h2==4.3.0
 hf-xet==1.1.10
