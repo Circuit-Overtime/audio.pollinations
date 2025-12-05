@@ -123,19 +123,24 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
 
 if __name__ == "__main__":
     async def main():
-        test_cases = [
-            'say it as it is "Hello Thomash"',
-            'speak it out "Hello Thomash"',
-            '"Hello Thomash" verbatim',
-            'read this "Hello Thomash"',
-            'How are you doing today?'
-        ]
+        test_text = """Read the story out to me in a very enthusiastic voice
         
-        for test_text in test_cases:
-            print(f"\nTesting: {test_text}")
-            result = await getContentRefined(test_text, None)
-            print(f"Intent: {result.get('intent')}")
-            print(f"Content: {result.get('content')}")
-            print("-" * 50)
+            Once upon a time, in a sunlit village nestled between rolling hills, a curious fox named Finn dreamed of 
+            adventure. One morning, Finn discovered a mysterious map tucked beneath an old oak tree. With a wag of his 
+            tail and a sparkle in his eyes, he set off to follow its winding path. Along the way, Finn befriended a wise 
+            owl, a playful squirrel, and a gentle deer. Together, they solved riddles, crossed babbling brooks, and laughed 
+            under the stars. By sunset, Finn realized the greatest treasure was the joy of friendship and the magic of
+              exploring the unknown. And so, every day after, Finn and his friends wandered the woods, creating new stories
+            to share.
+        
+          """
+           
+        
+       
+        print(f"\nTesting: {test_text}")
+        result = await getContentRefined(test_text, None)
+        print(f"Intent: {result.get('intent')}")
+        print(f"Content: {result.get('content')}")
+        print("-" * 50)
 
     asyncio.run(main())

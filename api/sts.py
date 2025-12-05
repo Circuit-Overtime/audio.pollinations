@@ -18,7 +18,6 @@ service = manager.Service()
 
 
 async def generate_sts(text: str, audio_base64_path: str, requestID: str, system: Optional[str] = None, clone_text: Optional[str] = None, voice: Optional[str] = "alloy") -> bytes:
-    
     if voice and not VOICE_BASE64_MAP.get(voice):
         with open(voice, "r") as f:
             audio_data = f.read()
