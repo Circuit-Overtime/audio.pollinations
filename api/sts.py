@@ -54,7 +54,7 @@ async def generate_sts(text: str, audio_base64_path: str, requestID: str, system
 if __name__ == "__main__":
     async def main():
         text = "How do you feel about this?"
-        audio = "W8i19O5P6L.wav"
+        audio = "testing/W8i19O5P6L.wav"
         base64_audio = encode_audio_base64(audio)
         saved_audio_path = save_temp_audio(base64_audio, "request224", "speech")
         audio_conv = convertToAudio(saved_audio_path, "request224")
