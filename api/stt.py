@@ -5,6 +5,10 @@ from utility import encode_audio_base64, save_temp_audio, convertToAudio
 from multiprocessing.managers import BaseManager
 from intent import getContentRefined
 import loggerConfig
+import time
+from timing_stat import TimingStats
+
+
 load_dotenv()
 
 
@@ -14,9 +18,18 @@ manager = ModelManager(address=("localhost", 6000), authkey=b"secret")
 manager.connect()
 service = manager.Service()
 
-async def generate_stt(text: str, audio_base64_path: str, requestID: str, system: Optional[str] = None, type: Optional[str] = "DIRECT") -> str:
+async def generate_stt(text: str, audio_base64_path: str, requestID: str, system: Optional[str] = None, type: Optional[str] = "DIRECT", timing_stats: Optional[object] = None) -> str:
+    if timing_stats is None:
+        timing_stats = TimingStats(requestID)
+    
+    timing_stats.start_timer("STT_TRANSCRIPTION")
     transcription = service.transcribe(audio_base64_path, requestID)
+    timing_stats.end_timer("STT_TRANSCRIPTION")
+    
+    timing_stats.start_timer("STT_INTENT_PROCESSING")
     intention_detection = await getContentRefined(f"This is the prompt and {text} and this is the audio transcript {transcription}", system)
+    timing_stats.end_timer("STT_INTENT_PROCESSING")
+    
     intention = intention_detection.get("intent")
     content = intention_detection.get("content")
     return content

@@ -7,12 +7,14 @@ from dotenv import load_dotenv
 import requests
 from config import POLLINATIONS_ENDPOINT
 import random
+import time
+from timing_stat import TimingStats
 
 load_dotenv()
 
-
-async def generate_reply(prompt: str, max_tokens: Optional[int] = 5000) -> str:
+async def generate_reply(prompt: str, max_tokens: Optional[int] = 5000, timing_stats: Optional[object] = None) -> str:
     logger.info(f"Generating reply for prompt: {prompt} with max tokens: {max_tokens}")
+    
     start_time = time.time()
     payload = {
         
@@ -69,15 +71,25 @@ async def generate_reply(prompt: str, max_tokens: Optional[int] = 5000) -> str:
                         reply = reply[:sponsor_start].strip()
         except Exception as e:
             raise RuntimeError(f"Unexpected response format: {data}") from e
+        
         elapsed_time = time.time() - start_time
+        
         logger.info(f"Reply generated in {elapsed_time:.2f} seconds")
         return reply.strip()
     except requests.exceptions.Timeout:
         logger.warning("Timeout occurred in generate_reply, returning generic system instruction.")
+        if timing_stats:
+            timing_stats.end_timer("TTT_API_CALL")
         return f"{prompt}"
+
+async def generate_ttt(text: str, requestID:str, system: str = None, timing_stats: Optional[object] = None):
+    if timing_stats is None:
+        timing_stats = TimingStats(requestID)
     
-async def generate_ttt(text: str, requestID:str, system: str = None):
-    replyText = await generate_reply(f"Prompt: {text} & System: {system}", 300)
+    timing_stats.start_timer("TTT_INTENT_PROCESSING")
+    replyText = await generate_reply(f"Prompt: {text} & System: {system}", 300, timing_stats)
+    timing_stats.end_timer("TTT_INTENT_PROCESSING")
+    
     print(f"The generated reply text is: {replyText}")
     return replyText
 

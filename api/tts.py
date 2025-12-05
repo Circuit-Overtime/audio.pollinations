@@ -11,6 +11,8 @@ import torch
 import torchaudio
 import io 
 import numpy as np
+import time
+from timing_stat import TimingStats
 
 class ModelManager(BaseManager): pass
 ModelManager.register("Service")
@@ -19,6 +21,8 @@ manager.connect()
 service = manager.Service()
 
 async def generate_tts(text: str, requestID: str, system: Optional[str] = None, clone_text: Optional[str] = None, voice: Optional[str] = "alloy") -> tuple:
+    if timing_stat is None:
+        timing_stat = TimingStats(requestID)
 
     if voice and not VOICE_BASE64_MAP.get(voice):
         with open(voice, "r") as f:
@@ -30,9 +34,10 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         base64_data = encode_audio_base64(load_audio_path)    
         clone_path = save_temp_audio(base64_data, requestID, "clone")
 
-    system = "Neutral tone, clear articulation, natural pacing."
+    if not system:
+        system = "Neutral tone, clear articulation, natural pacing."
         
-        
+    
     prepareChatTemplate = create_speaker_chat(
         text=text,
         requestID=requestID,
@@ -40,11 +45,13 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         clone_audio_path=clone_path,
         clone_audio_transcript=clone_text
     )
+        
     # print(f"Chat Template PrepareChatTemplate: \n {prepareChatTemplate}")
 
     print(f"Generating Audio for {requestID}")
+    timing_stat.start_timer("TTS_AUDIO_GENERATION")
     audio_numpy, audio_sample = service.speechSynthesis(chatTemplate=prepareChatTemplate)
-
+    timing_stat.end_timer("TTS_AUDIO_GENERATION")
     audio_tensor = torch.from_numpy(audio_numpy).unsqueeze(0)
     buffer = io.BytesIO()
     torchaudio.save(buffer, audio_tensor, audio_sample, format="wav")
