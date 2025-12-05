@@ -69,7 +69,7 @@ async def run_audio_pipeline(
                 "tool_choice": "auto",
                 "n": 1,
                 "seed": random.randint(1000, 9999),
-                "max_tokens": 3000,
+                "max_tokens": 3500,
                 "temperature": 1,
                 "top_p": 1,
                 "stream": False,
@@ -247,7 +247,6 @@ async def run_audio_pipeline(
         except Exception as cleanup_error:
             logger.error(f"[{reqID}] Failed to cleanup higgs directory: {cleanup_error}")
         
-        # Clean up temp files
         cleanup_temp_file(f"{TEMP_SAVE_DIR}{reqID}")
         logger.info(f"Audio Pipeline Completed for reqID={reqID}")
         
@@ -255,7 +254,9 @@ async def run_audio_pipeline(
 
 if __name__ == "__main__":
     async def main():
-        text = "tell me a story about a brave little toaster for about 4 minutes of speech time"
+        text = """ 
+        Tell me a story about a brave little toaster who goes on an adventure to find its lost friends.
+        """
         synthesis_audio_path = None
         requestID = reqID()
         voice = "ash"

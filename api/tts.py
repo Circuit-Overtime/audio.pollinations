@@ -1,5 +1,4 @@
 from templates import create_speaker_chat
-from intent import getContentRefined
 from utility import encode_audio_base64, validate_and_decode_base64_audio, save_temp_audio
 from voiceMap import VOICE_BASE64_MAP
 import asyncio
@@ -30,22 +29,7 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         base64_data = encode_audio_base64(load_audio_path)    
         clone_path = save_temp_audio(base64_data, requestID, "clone")
 
-    result = await getContentRefined(text, system)
-    intent_type = result.get("intent")
-    content = result.get("content")
-    
-
-    if not system:
-        system = result.get("system_instruction", "Provided externally")
-
-    print(f"Intent: {intent_type}, Content: {content}, System: {system}")
-    print(intent_type)
-    
-    if intent_type not in ["DIRECT", 'REPLY']:
-        intent_type = "DIRECT"
-        
-    if intent_type in ["DIRECT", "REPLY"]:
-        system = f"""
+    system = f"""
         "You are a voice synthesis engine. Speak the user's text exactly and only as written. Do not add extra words, introductions, or confirmations.\n"
         "Apply the emotions as written in the user prompt.\n"
         "Generate audio following instruction.\n"
@@ -54,13 +38,15 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         "<|scene_desc_end|>"
         """
         
+        
     prepareChatTemplate = create_speaker_chat(
-        text=content,
+        text=text,
         requestID=requestID,
         system=system,
         clone_audio_path=clone_path,
         clone_audio_transcript=clone_text
     )
+
     print(f"Generating Audio for {requestID}")
     audio_numpy, audio_sample = service.speechSynthesis(chatTemplate=prepareChatTemplate)
 

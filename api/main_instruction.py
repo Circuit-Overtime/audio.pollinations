@@ -37,7 +37,7 @@ Token-length guide for reply-type TTS responses:
 1 minute of spoken audio ≈ 150–180 tokens.
 To estimate: tokens = minutes * 160 (approx).
 Never exceed max_tokens for the request; scale down if needed.
-If the user requests X minutes, generate only the amount of text that fits: min(X * 160, max_tokens).
+If the user requests x minutes, generate only the amount of text that fits: min(x * 160, max_tokens).
 If no duration is requested, keep replies short.
 Always sound natural and human.
 Do not include any overhead in the response — only the raw response text.
