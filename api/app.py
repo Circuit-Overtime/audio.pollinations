@@ -7,25 +7,38 @@ from voiceMap import VOICE_BASE64_MAP
 from server import run_audio_pipeline
 import multiprocessing as mp
 from multiprocessing.managers import BaseManager
-import threading
 import traceback
 from wittyMessages import get_validation_error, get_witty_error
 import time
 import asyncio
 import os
-import queue
-import io
 import traceback
-
+from config import WORKERS
+from gunicorn.app.base import BaseApplication
+from gunicorn.workers.sync import SyncWorker
 
 app = Flask(__name__)
 CORS(app)
-
 class ModelManager(BaseManager): pass
 ModelManager.register("Service")
 manager = ModelManager(address=("localhost", 6000), authkey=b"secret")
 manager.connect()
 service = manager.Service()
+
+class GunicornApp(BaseApplication):
+        def __init__(self, app, options=None):
+            self.application = app
+            self.options = options or {}
+            super().__init__()
+
+        def load_config(self):
+            config = {key: value for key, value in self.options.items()
+                     if key in self.cfg.settings and value is not None}
+            for key, value in config.items():
+                self.cfg.set(key.lower(), value)
+
+        def load(self):
+            return self.application
 
 @app.before_request
 def before_request():
@@ -59,7 +72,6 @@ def audio_endpoint():
             seed = request.args.get("seed")
             voice_path = None
             request_id = None
-
             generateHashValue = service.cacheName(f"{text}{system if system else ''}{voice if voice else ''}{str(seed) if seed else 42}")
             request_id = generateHashValue
             gen_audio_folder = os.path.join(os.path.dirname(__file__), "..", "genAudio")
@@ -83,7 +95,6 @@ def audio_endpoint():
                         }
                     )
 
-            # If audio is not in cache, prepare voice
             if VOICE_BASE64_MAP.get(voice):
                 named_voice_path = VOICE_BASE64_MAP.get(voice)
                 coded = encode_audio_base64(named_voice_path)
@@ -129,11 +140,9 @@ def audio_endpoint():
             
             if not messages or not isinstance(messages, list):
                 return jsonify({"error": {"message": "Missing or invalid 'messages' in payload.", "code": 400}}), 400
-            
             request_id = None
             system_instruction = None
             user_content = None
-            
             for msg in messages:
                 if msg.get("role") == "system":
                     for item in msg.get("content", []):
@@ -141,16 +150,13 @@ def audio_endpoint():
                             system_instruction = item.get("text")
                 elif msg.get("role") == "user":
                     user_content = msg.get("content", [])
-
             if not user_content or not isinstance(user_content, list):
                 return jsonify({"error": {"message": "Missing or invalid 'content' in user message.", "code": 400}}), 400
-
             text = None
             voice_name = "alloy"
             voice_b64 = None
             clone_audio_transcript = None
             speech_audio_b64 = None
-
             for item in user_content:
                 if isinstance(item, dict):
                     if item.get("type") == "text":
@@ -168,18 +174,13 @@ def audio_endpoint():
 
             if not text or not isinstance(text, str) or not text.strip():
                 return jsonify({"error": {"message": "Missing required 'text' in content.", "code": 400}}), 400
-
-            # If both voice_b64 and a non-default voice_name are provided, error
             if voice_b64 and voice_name and voice_name != "alloy":
                 return jsonify({"error": {"message": "Provide either 'voice.data' (base64) or 'voice.name', not both.", "code": 400}}), 400
-
-            # Generate cache key and check cache
             generateHashValue = service.cacheName(f"{text}{system_instruction if system_instruction else ''}{voice_name if voice_name else ''}{str(seed) if seed else 42}")
             request_id = generateHashValue
             gen_audio_folder = os.path.join(os.path.dirname(__file__), "..", "genAudio")
             cached_audio_path = os.path.join(gen_audio_folder, f"{generateHashValue}.wav")
             cached_text_path = os.path.join(gen_audio_folder, f"{generateHashValue}.txt")
-            
             if os.path.isfile(cached_audio_path) or os.path.isfile(cached_text_path):
                 if os.path.isfile(cached_text_path):
                     with open(cached_text_path, "r") as f:
@@ -196,11 +197,8 @@ def audio_endpoint():
                             "Content-Length": str(len(audio_data))
                         }
                     )
-
-            # Prepare voice and speech audio
             voice_path = None
             speech_audio_path = None
-            
             if voice_b64:
                 try:
                     decoded = validate_and_decode_base64_audio(voice_b64, max_duration_sec=15)
@@ -313,16 +311,26 @@ def method_not_allowed(e):
     return jsonify({"error": {"message": "That HTTP method is not invited to this party! Try a different one! 🎉", "code": 405}}), 405
 
 if __name__ == "__main__":
-    
     host = "0.0.0.0"
     port = 8000
-    logger.info(f"Starting Elixpo Audio API Server at {host}:{port}")
-
-    # init_worker()
-    # init_cache_cleanup()
-
+    workers = int(os.getenv("WORKERS", 4))
+    logger.info(f"Starting Elixpo Audio API Server at {host}:{port} with {workers} workers")
+    options = {
+        "bind": f"{host}:{port}",
+        "workers": workers,
+        "worker_class": "gthread",
+        "threads" : WORKERS,
+        "timeout": 120,
+        "accesslog": "-",
+        "errorlog": "-",
+        "loglevel": "info",
+        "access_log_format": '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s',
+        "max_requests": 1000,
+        "max_requests_jitter": 50,
+    }
     try:
-        app.run(host=host, port=port, debug=False, threaded=True)
-    finally:
-        # cleanup_worker()
-        pass
+        gunicorn_app = GunicornApp(app, options)
+        gunicorn_app.run()
+    except Exception as e:
+        logger.error(f"Failed to start Gunicorn: {e}")
+        raise

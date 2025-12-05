@@ -23,4 +23,5 @@ MAX_CACHE_SIZE_MB = 500
 MAX_CACHE_FILES = 100    
 TRANSCRIBE_MODEL_SIZE = "small"
 MAX_CONCURRENT_OPERATIONS = 5 
+WORKERS = 8
 POLLINATIONS_ENDPOINT = "https://enter.pollinations.ai/api/generate/v1/chat/completions"

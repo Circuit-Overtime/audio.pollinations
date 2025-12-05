@@ -102,7 +102,6 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
 if __name__ == "__main__":
     async def main():
         test_text = "Wow, that was an amazing performance! How did you manage to pull that off?"
-
         print(f"\nTesting: {test_text}")
         result = await getContentRefined(test_text, None)
         print(f"Intent: {result.get('intent')}")
