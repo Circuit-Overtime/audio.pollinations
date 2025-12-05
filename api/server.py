@@ -15,6 +15,7 @@ from requestID import reqID
 from voiceMap import VOICE_BASE64_MAP
 from main_instruction import inst, user_inst
 from dotenv import load_dotenv
+import io 
 
 load_dotenv()
 
@@ -114,7 +115,7 @@ async def run_audio_pipeline(
                         if fn_name == "generate_tts":
                             from tts import generate_tts 
                             logger.info(f"[{reqID}] Calling TTS pipeline")
-                            audio_bytes,sample_rate = await generate_tts(
+                            audio_numpy, sample_rate = await generate_tts(
                                 text=fn_args.get("text"),
                                 requestID=fn_args.get("requestID"),
                                 system=fn_args.get("system"),
@@ -124,6 +125,11 @@ async def run_audio_pipeline(
 
                             os.makedirs("genAudio", exist_ok=True)
                             gen_audio_path = f"genAudio/{reqID}.wav"
+                            audio_tensor = torch.from_numpy(audio_numpy).unsqueeze(0)
+                            buffer = io.BytesIO()
+                            torchaudio.save(buffer, audio_tensor, sample_rate, format="wav")
+                            audio_bytes = buffer.getvalue()
+                            
                             with open(gen_audio_path, "wb") as f:
                                 f.write(audio_bytes)
                             logger.info(f"[{reqID}] TTS audio saved to: {gen_audio_path}")

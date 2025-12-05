@@ -106,6 +106,7 @@ if __name__ == "__main__":
         result = await getContentRefined(test_text, None)
         print(f"Intent: {result.get('intent')}")
         print(f"Content: {result.get('content')}")
+        print(f"System Instruction: {result.get('system_instruction')}")
         print("-" * 50)
 
     asyncio.run(main())

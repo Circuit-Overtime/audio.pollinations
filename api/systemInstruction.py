@@ -17,14 +17,9 @@ async def generate_higgs_system_instruction(text: str) -> str:
     character. No dialogue or content. Keep language plain and natural. 
     Fit the entire output within 120 tokens.
     RESPONSE FORMAT STRICTLY -- INCLUDE ():
-    (
-    "You are a masterful voice performer adding human emotion and nuance."
-    "Use expressive tone, natural pacing, and subtle imperfections."
-    "Generate audio following instruction."
-    "<|scene_desc_start|>"
-    [SCENE DESCRIPTION HERE]
-    "<|scene_desc_end|>"
-    )
+    {
+        system_instruction: "Your generated scene description here"
+    }
 """ 
 
     header = {

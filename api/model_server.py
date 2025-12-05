@@ -146,7 +146,7 @@ class ipcModules:
                 with self._gpu_lock:
                     output: HiggsAudioResponse = self.serve_engine.generate(
                         chat_ml_sample=chatTemplate,
-                        max_new_tokens=4096,
+                        max_new_tokens=2048,
                         temperature=1.0,
                         top_p=0.95,
                         top_k=50,

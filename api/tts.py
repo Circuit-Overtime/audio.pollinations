@@ -10,6 +10,7 @@ import time
 import torch
 import torchaudio
 import io 
+import numpy as np
 
 class ModelManager(BaseManager): pass
 ModelManager.register("Service")
@@ -17,7 +18,7 @@ manager = ModelManager(address=("localhost", 6000), authkey=b"secret")
 manager.connect()
 service = manager.Service()
 
-async def generate_tts(text: str, requestID: str, system: Optional[str] = None, clone_text: Optional[str] = None, voice: Optional[str] = "alloy") -> bytes:
+async def generate_tts(text: str, requestID: str, system: Optional[str] = None, clone_text: Optional[str] = None, voice: Optional[str] = "alloy") -> tuple:
 
     if voice and not VOICE_BASE64_MAP.get(voice):
         with open(voice, "r") as f:
@@ -29,15 +30,7 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         base64_data = encode_audio_base64(load_audio_path)    
         clone_path = save_temp_audio(base64_data, requestID, "clone")
 
-    system = """
-        (
-        "You are a voice synthesis engine. Speak the user's text exactly and only as written. Do not add extra words, introductions, or confirmations.\n"
-        "Generate audio following instruction.\n"
-        "<|scene_desc_start|>\n"
-        "Neutral tone, clear articulation, natural pacing."\n
-        "<|scene_desc_end|>"
-        )
-        """
+    system = "Neutral tone, clear articulation, natural pacing."
         
         
     prepareChatTemplate = create_speaker_chat(
@@ -57,7 +50,7 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
     torchaudio.save(buffer, audio_tensor, audio_sample, format="wav")
     audio_bytes = buffer.getvalue()
     
-    return audio_bytes, audio_sample
+    return audio_numpy, audio_sample
 
 if __name__ == "__main__":
     class ModelManager(BaseManager): pass
@@ -89,10 +82,10 @@ if __name__ == "__main__":
         #     print(f"Cache hit: genAudio/{cache_name}.wav already exists.")
         #     return
         
-        audio_bytes, audio_sample = await generate_tts(text, requestID, system, clone_text, voice)
-        torchaudio.save(f"{cache_name}.wav", torch.from_numpy(audio_bytes)[None, :], audio_sample)
-        torchaudio.save(f"genAudio/{cache_name}.wav", torch.from_numpy(audio_bytes)[None, :], audio_sample)
+        audio_numpy, audio_sample = await generate_tts(text, requestID, system, clone_text, voice)
+        audio_tensor = torch.from_numpy(audio_numpy).unsqueeze(0)
+        torchaudio.save(f"{cache_name}.wav", audio_tensor, audio_sample)
+        torchaudio.save(f"genAudio/{cache_name}.wav", audio_tensor, audio_sample)
         print(f"Audio saved as {cache_name}.wav")
 
     asyncio.run(main())
-    
