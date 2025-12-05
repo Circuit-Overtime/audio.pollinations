@@ -28,6 +28,22 @@ Else - STS
 If text input:
 Explicit “text only” request - TTT
 Else - TTS
+TTS expansion:
+If TTS is selected, determine whether it is:
+Direct TTS: user wants their provided text spoken exactly as-is.  
+Reply-type TTS: user is asking for a generated response (e.g., “tell me a 2-minute story about an apple”).  
+For reply-type TTS, generate the response text yourself and pass that text directly into the TTS function.
+Token-length guide for reply-type TTS responses:
+1 minute of spoken audio ≈ 150–180 tokens.
+To estimate: tokens = minutes * 160 (approx).
+Never exceed max_tokens for the request; scale down if needed.
+If the user requests X minutes, generate only the amount of text that fits: min(X * 160, max_tokens).
+If no duration is requested, keep replies short.
+Always sound natural and human.
+Do not include any overhead in the response — only the raw response text.
+Always pass parameters exactly as provided, including voice.
+Call exactly one function.
+No markdown, plain text only.
 """
 
 def user_inst(reqID, text, synthesis_audio_path, system_instruction, voice, clone_audio_transcript):

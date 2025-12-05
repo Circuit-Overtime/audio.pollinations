@@ -118,7 +118,7 @@ async def run_audio_pipeline(
                                 requestID=fn_args.get("requestID"),
                                 system=fn_args.get("system"),
                                 clone_text=fn_args.get("clone_text"),
-                                voice=fn_args.get("voice")
+                                voice=fn_args.get("voice"),
                             )
 
                             os.makedirs("genAudio", exist_ok=True)
@@ -255,7 +255,7 @@ async def run_audio_pipeline(
 
 if __name__ == "__main__":
     async def main():
-        text = "good morning fellow humans, what a wonderful day to be alive!"
+        text = "tell me a story about a brave little toaster for about 4 minutes of speech time"
         synthesis_audio_path = None
         requestID = reqID()
         voice = "ash"
