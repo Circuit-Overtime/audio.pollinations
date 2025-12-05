@@ -75,31 +75,6 @@ def create_speaker_chat(
             content=text
         )
     )
-
-    # logger.info(f"Created chat template with {len(messages)} messages for request {requestID}")
-    # os.makedirs(f"{TEMP_SAVE_DIR}{requestID}", exist_ok=True)
-    
-    # def serialize_message(msg: Message):
-    #     # Handles both string and list-of-AudioContent for content
-    #     if isinstance(msg.content, str):
-    #         content = msg.content
-    #     elif isinstance(msg.content, list):
-    #         # Ensure all items are dicts (for AudioContent or future types)
-    #         content = [c.__dict__ if hasattr(c, "__dict__") else c for c in msg.content]
-    #     else:
-    #         # Fallback for unexpected types
-    #         content = str(msg.content)
-    #     return {
-    #         "role": msg.role,
-    #         "content": content
-    #     }
-
-    # serialized_messages = [serialize_message(m) for m in messages]
-
-    # chat_template_path = f"{TEMP_SAVE_DIR}{requestID}/chatTemplate.json"
-    # with open(chat_template_path, "w", encoding="utf-8") as f:
-    #     json.dump(serialized_messages, f, ensure_ascii=False, indent=2)
-
     return ChatMLSample(messages=messages)
 
 

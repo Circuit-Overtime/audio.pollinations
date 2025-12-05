@@ -36,6 +36,7 @@ async def run_audio_pipeline(
     clone_audio_transcript: Optional[str] = None,
     system_instruction: Optional[str] = None 
 ):
+    text = text.strip()
     print(f"Recieved the parameters: {reqID}, {text}, {voice}, {synthesis_audio_path}, {clone_audio_transcript}, {system_instruction}")
     logger.info(f" [{reqID}] Starting Audio Pipeline")
     logger.info(f"Synthesis audio {synthesis_audio_path} | Clone Audio {voice}")
@@ -255,11 +256,11 @@ async def run_audio_pipeline(
 if __name__ == "__main__":
     async def main():
         text = """ 
-        Tell me a story about a brave little toaster who goes on an adventure to find its lost friends.
+        Hello, Good morning everyone! Welcome to a fresh new day what are you upto
         """
         synthesis_audio_path = None
         requestID = reqID()
-        voice = "ash"
+        voice = "alloy"
         synthesis_audio_path=None
         clone_audio_transcript = None
         saved_base64_path_clone = None

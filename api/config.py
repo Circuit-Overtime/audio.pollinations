@@ -16,7 +16,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "Audio is recorded from a quiet room.\n"
     "<|scene_desc_end|>"
 )
-TRIAL_MODE = True
+TRIAL_MODE = False
 DEFAULT_STOP_STRINGS = ["<|end_of_text|>", "<|eot_id|>"]
 TEMP_SAVE_DIR = "/tmp/higgs/"
 MAX_CACHE_SIZE_MB = 500 

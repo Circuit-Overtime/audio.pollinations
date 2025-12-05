@@ -29,13 +29,14 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         base64_data = encode_audio_base64(load_audio_path)    
         clone_path = save_temp_audio(base64_data, requestID, "clone")
 
-    system = f"""
+    system = """
+        (
         "You are a voice synthesis engine. Speak the user's text exactly and only as written. Do not add extra words, introductions, or confirmations.\n"
-        "Apply the emotions as written in the user prompt.\n"
         "Generate audio following instruction.\n"
         "<|scene_desc_start|>\n"
-            {system}\n
+        "Neutral tone, clear articulation, natural pacing."\n
         "<|scene_desc_end|>"
+        )
         """
         
         
@@ -46,6 +47,7 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         clone_audio_path=clone_path,
         clone_audio_transcript=clone_text
     )
+    # print(f"Chat Template PrepareChatTemplate: \n {prepareChatTemplate}")
 
     print(f"Generating Audio for {requestID}")
     audio_numpy, audio_sample = service.speechSynthesis(chatTemplate=prepareChatTemplate)

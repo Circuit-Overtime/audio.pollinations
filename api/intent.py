@@ -9,7 +9,7 @@ import loggerConfig
 load_dotenv()
 
 
-async def getContentRefined(text: str, system: Optional[str] = None, max_tokens: Optional[int] = 300) -> dict:
+async def getContentRefined(text: str, system: Optional[str] = None, max_tokens: Optional[int] = 3000) -> dict:
     logger.info(f"Classifying intent and extracting content for prompt: {text} with max tokens: {max_tokens}")
 
     system_instruction_content = ""
@@ -29,42 +29,19 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
             "When system is empty/none, your JSON output should include a third field 'system_instruction' with the instructions"
         )
     payload = {
-        "model": os.getenv("MODEL"),
+        "model": "mistral",
         "messages": [
             {
                 "role": "system",
                 "content": (
-                    "You are an intent classification and content extraction AI. "
-                    "Your output must be ONLY a JSON object with this schema:\n"
+                    "You are an intent-classification and speech-content extractor. Output ONLY a JSON object:\n"
                     "{ \"intent\": \"DIRECT\" or \"REPLY\", \"content\": \"...\", \"system_instruction\": \"...\" }\n\n"
                     "Rules:\n"
-                    "1. intent = \"DIRECT\" when the user wants you to speak/read specific text exactly as they provide it. "
-                    "Look for patterns like:\n"
-                    "- Quoted text that should be spoken verbatim (e.g., 'say \"Hello World\"', 'speak out \"Good morning\"')\n"
-                    "- Instructions to read, speak, say, or vocalize specific content\n"
-                    "- Text marked as 'verbatim', 'as it is', 'exactly', or similar modifiers\n"
-                    "- Any clear indication the user wants their exact words spoken\n"
-                    "For DIRECT intent:\n"
-                    "- Extract ONLY the core text that should be spoken (remove quotes, command words like 'say', 'speak', etc.)\n"
-                    "- Preserve the original meaning and wording exactly\n"
-                    "- Add natural punctuation for speech flow (commas, periods, exclamation marks)\n"
-                    "- Keep it clean and speech-ready without changing the user's intended words\n\n"
-                    "2. intent = \"REPLY\" when the user is asking questions, making statements, or expecting a conversational response.\n"
-                    "For REPLY intent:\n"
-                    "- Generate a natural, engaging conversational response\n"
-                    "- Make it sound like how a real person would respond in conversation\n"
-                    "- Keep responses concise but expressive and personable\n"
-                    "- Add appropriate emotional tone and natural speech patterns\n\n"
-                    "3. For BOTH intents, ensure the content is optimized for text-to-speech:\n"
-                    "- Use natural breathing pauses with commas\n"
-                    "- Include appropriate punctuation for emphasis and flow\n"
-                    "- Make sentences clear and easy to speak\n"
-                    "- Avoid overly complex or run-on sentences\n"
-                    "- Sound natural when spoken aloud\n\n"
-                    "4. Be intelligent about context - understand the user's true intention beyond just keyword matching.\n"
-                    "5. Do not output explanations or any text outside the JSON object. "
-                    "Do not include emojis, special symbols, markdown, or formatting. "
-                    "Strictly return only the JSON object with speech-optimized content.\n\n"
+                    "1. intent=\"DIRECT\" when the user wants text spoken exactly as given (quotes, verbs like say/speak/read, verbatim/exact wording). Extract only the text to be spoken, remove command words, keep meaning unchanged, add light punctuation for natural speech.\n"
+                    "2. intent=\"REPLY\" when the user expects a conversational answer. Generate a short, natural, human-sounding reply.\n"
+                    "3. For both: optimize for TTS with clear punctuation, natural pauses, simple speakable phrasing.\n"
+                    "4. Infer intent by context, not keywords alone.\n"
+                    "5. Output ONLY the JSON object. No extra text, no emojis or formatting.\n\n"
                     f"{system_instruction_content}"
                 )
             },
@@ -73,7 +50,7 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
                 "content": f"Prompt: {text}\nSystem: {system if system else 'None - generate system instruction'}"
             }
         ],
-        "temperature": 0.1,
+        "temperature": 0.7,
         "stream": False,
         "private": True,
         "token": os.getenv("POLLI_TOKEN"),
@@ -123,20 +100,8 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
 
 if __name__ == "__main__":
     async def main():
-        test_text = """Read the story out to me in a very enthusiastic voice
-        
-            Once upon a time, in a sunlit village nestled between rolling hills, a curious fox named Finn dreamed of 
-            adventure. One morning, Finn discovered a mysterious map tucked beneath an old oak tree. With a wag of his 
-            tail and a sparkle in his eyes, he set off to follow its winding path. Along the way, Finn befriended a wise 
-            owl, a playful squirrel, and a gentle deer. Together, they solved riddles, crossed babbling brooks, and laughed 
-            under the stars. By sunset, Finn realized the greatest treasure was the joy of friendship and the magic of
-              exploring the unknown. And so, every day after, Finn and his friends wandered the woods, creating new stories
-            to share.
-        
-          """
-           
-        
-       
+        test_text = "Wow, that was an amazing performance! How did you manage to pull that off?"
+
         print(f"\nTesting: {test_text}")
         result = await getContentRefined(test_text, None)
         print(f"Intent: {result.get('intent')}")
