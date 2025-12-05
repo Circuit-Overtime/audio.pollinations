@@ -30,47 +30,18 @@ async def generate_sts(text: str, audio_base64_path: str, requestID: str, system
 
         
     transcription = service.transcribe(audio_base64_path, requestID)
+    print(f"Transcription result: {transcription[:100]}...")
     intention_detection = await getContentRefined(f"This is the prompt and {text} and this is the audio transcript {transcription}", system)
     intention = intention_detection.get("intent")
     content = intention_detection.get("content")
-    if not system:
-        system = f"""
-            (
-            "You are a voice synthesis engine. Speak the user’s text exactly and only as written. Do not add extra words, introductions, or confirmations.\n"
-            "Apply the emotions as written in the user prompt.\n"
-            "Generate audio following instruction.\n"
-            "<|scene_desc_start|>\n"
-            "Neutral tone, clear articulation, natural pacing."\n
-            "<|scene_desc_end|>"
-            )
-            """
-    else:
-        system = f"""
-            (
-            "You are a voice synthesis engine. Speak the user’s text exactly and only as written. Do not add extra words, introductions, or confirmations.\n"
-            "Apply the emotions as written in the user prompt.\n"
-            "Generate audio following instruction.\n"
-            "<|scene_desc_start|>\n"
-            "{system}\n
-            "<|scene_desc_end|>"
-            )
-            """
-
-
-    if intention == "DIRECT":
-        prepareChatTemplate = create_speaker_chat(
-        text=transcription.strip(),
-        requestID=requestID,
-        system=system,
-        clone_audio_path=clone_path,
-    )
-    elif intention == "REPLY":
-        prepareChatTemplate = create_speaker_chat(
+    system = intention_detection.get("system_instruction")
+    prepareChatTemplate = create_speaker_chat(
         text=content,
         requestID=requestID,
         system=system,
         clone_audio_path=clone_path,
-        )
+    )
+        
     
     audio_numpy, audio_sample = service.speechSynthesis(chatTemplate=prepareChatTemplate)
     audio_tensor = torch.from_numpy(audio_numpy).unsqueeze(0)
@@ -93,7 +64,8 @@ if __name__ == "__main__":
         voice = None
 
         audio_bytes, sample_rate = await generate_sts(text, audio_conv, requestID, system, clone_text, voice)
-        torchaudio.save(f"{requestID}.wav", torch.from_numpy(audio_bytes)[None, :], sample_rate)
-        
+        with open(f"{requestID}.wav", "wb") as f:
+            f.write(audio_bytes)
+        print(f"Generated audio saved as {requestID}.wav with sample rate {sample_rate}")
     
     asyncio.run(main())
