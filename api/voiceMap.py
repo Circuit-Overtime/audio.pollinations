@@ -1,20 +1,20 @@
 import os
 import sys
 VOICE_BASE64_MAP = {
-    "alloy":   "voices_b64/raw_wav/alloy.wav",
-    "amuch":   "voices_b64/raw_wav/amuch.wav",
-    "ash":     "voices_b64/raw_wav/ash.wav",
-    "ballad":  "voices_b64/raw_wav/ballad.wav",
-    "coral":   "voices_b64/raw_wav/coral.wav",
-    "dan":     "voices_b64/raw_wav/dan.wav",
-    "echo":    "voices_b64/raw_wav/echo.wav",
-    "fable":   "voices_b64/raw_wav/fable.wav",
-    "nova":    "voices_b64/raw_wav/nova.wav",
-    "onyx":    "voices_b64/raw_wav/onyx.wav",
-    "sage":    "voices_b64/raw_wav/sage.wav",
-    "shimmer": "voices_b64/raw_wav/shimmer.wav",
-    "verse":   "voices_b64/raw_wav/verse.wav",
-    "ghost":   "voices_b64/raw_wav/ghost.wav",
+    "alloy":   "voices_b64/default_wav/alloy.wav",
+    "amuch":   "voices_b64/default_wav/amuch.wav",
+    "ash":     "voices_b64/default_wav/ash.wav",
+    "ballad":  "voices_b64/default_wav/ballad.wav",
+    "coral":   "voices_b64/default_wav/coral.wav",
+    "dan":     "voices_b64/default_wav/dan.wav",
+    "echo":    "voices_b64/default_wav/echo.wav",
+    "fable":   "voices_b64/default_wav/fable.wav",
+    "nova":    "voices_b64/default_wav/nova.wav",
+    "onyx":    "voices_b64/default_wav/onyx.wav",
+    "sage":    "voices_b64/default_wav/sage.wav",
+    "shimmer": "voices_b64/default_wav/shimmer.wav",
+    "verse":   "voices_b64/default_wav/verse.wav",
+    "ghost":   "voices_b64/default_wav/ghost.wav",
 }
 
 if __name__ == "__main__":

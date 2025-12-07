@@ -141,11 +141,11 @@ def convert_default_voices_to_wav_audio(audio_path: str) -> str:
         base64_data = encode_audio_base64(f"voices_b64/raw_wav/{audio_path}")
         if not base64_data:
             raise ValueError("Empty audio data")
-        audio_bytes = base64.b64decode(base64_data)
+        # audio_bytes = base64.b64decode(base64_data)
         file_path = os.path.join(higgs_default_dir, f"{voice_name}.wav")
-        with open(file_path, "wb") as f:
-            f.write(audio_bytes)
-        logger.debug(f"Saved {len(audio_bytes)} bytes WAV to {file_path}")
+        with open(file_path, "w") as f:
+            f.write(base64_data)
+        logger.debug(f"Saved {len(base64_data)} bytes WAV to {file_path}")
 
 
 def encode_audio_base64(audio_path: str) -> str:
