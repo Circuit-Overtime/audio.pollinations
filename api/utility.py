@@ -98,7 +98,6 @@ def cleanup_temp_file(filepath: str):
     try:
         if filepath and os.path.exists(filepath):
             if os.path.isdir(filepath):
-                # Remove all files and subdirectories
                 for root, dirs, files in os.walk(filepath, topdown=False):
                     for name in files:
                         file_path = os.path.join(root, name)
