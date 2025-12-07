@@ -1,5 +1,5 @@
 from templates import create_speaker_chat
-from utility import encode_audio_base64, validate_and_decode_base64_audio, save_temp_audio, cleanup_temp_file
+from utility import cleanup_temp_file, validate_and_decode_base64_audio
 from voiceMap import VOICE_BASE64_MAP
 import asyncio
 from typing import Optional
@@ -61,8 +61,6 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         clone_audio_path=clone_path,
         clone_audio_transcript=clone_text
     )
-        
-    # print(f"Chat Template PrepareChatTemplate: \n {prepareChatTemplate}")
 
     print(f"Generating Audio for {requestID}")
     timing_stat.start_timer("TTS_AUDIO_GENERATION")
@@ -71,8 +69,6 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
     audio_tensor = torch.from_numpy(audio_numpy).unsqueeze(0)
     buffer = io.BytesIO()
     torchaudio.save(buffer, audio_tensor, audio_sample, format="wav")
-    audio_bytes = buffer.getvalue()
-    cleanup_temp_file(clone_path)
     return audio_numpy, audio_sample
 
 if __name__ == "__main__":

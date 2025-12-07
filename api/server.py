@@ -292,8 +292,6 @@ async def run_audio_pipeline(
                 logger.info(f"[{reqID}] Cleaned up higgs directory: {higgs_dir}")
         except Exception as cleanup_error:
             logger.error(f"[{reqID}] Failed to cleanup higgs directory: {cleanup_error}")
-        
-        cleanup_temp_file(f"{TEMP_SAVE_DIR}{reqID}")
         logger.info(f"Audio Pipeline Completed for reqID={reqID}")
         
 
