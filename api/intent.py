@@ -14,37 +14,38 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
 
     system_instruction_content = ""
     if not system:
-        system_instruction_content = (
-            "Additionally, generate system instructions for the text using this format:\n"
-            "Your job is to describe HOW the text should be spoken, not WHAT should be said.\n\n"
-            "Focus on:\n"
-            "- Voice texture and tone (warm, crisp, breathy, rich, smooth, raspy, etc.)\n"
-            "- Emotional atmosphere (intimate, energetic, contemplative, dramatic, playful, etc.)\n"
-            "- Speaking pace and rhythm (leisurely, urgent, measured, flowing, staccato, etc.)\n"
-            "- Physical environment feel (cozy room, grand hall, quiet library, bustling cafe, etc.)\n"
-            "- Vocal character (confident speaker, gentle storyteller, excited friend, wise mentor, etc.)\n"
-            "- Natural human qualities (slight breathiness, warm chuckles, thoughtful pauses, etc.)\n\n"
-            "Do NOT include any dialogue or text content - only describe the speaking environment and vocal approach.\n"
-            "Use plain descriptive language without any formatting.\n\n"
-            "When system is empty/none, your JSON output should include a third field 'system_instruction' with the instructions"
-        )
+        system_instruction_content = """
+            Generate system instructions describing how the provided text should be spoken. 
+            Do not repeat or reference the actual text. Your job is to describe the vocal performance style only.
+            Focus on:
+            Voice texture and tone (warm, crisp, breathy, rich, smooth, raspy, etc.)
+            Emotional atmosphere (intimate, energetic, contemplative, dramatic, playful, etc.)
+            Speaking pace and rhythm (leisurely, urgent, measured, flowing, slow-moderate, etc.)
+            Physical environment feel (cozy room, grand hall, quiet library, nighttime outdoors, etc.)
+            Vocal character (gentle storyteller, confident narrator, wise mentor, excited friend, etc.)
+            Human qualities (slight breathiness, micro-pauses, natural inflection, soft chuckles, etc.)
+            Example System Instruction -- SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control
+            """
+        
     payload = {
         "model": "mistral",
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are an intent-classification and speech-content extractor. Output ONLY a JSON object:\n"
-                    "{ \"intent\": \"DIRECT\" or \"REPLY\", \"content\": \"...\", \"system_instruction\": \"...\" }\n\n"
-                    "Rules:\n"
-                    "1. intent=\"DIRECT\" when the user wants text spoken exactly as given (quotes, verbs like say/speak/read, verbatim/exact wording). Extract only the text to be spoken, remove command words, keep meaning unchanged, add light punctuation for natural speech.\n"
-                    "2. intent=\"REPLY\" when the user expects a conversational answer. Generate a short, natural, human-sounding reply.\n"
-                    "3. For both: optimize for TTS with clear punctuation, natural pauses, simple speakable phrasing.\n"
-                    "4. Infer intent by context, not keywords alone.\n"
-                    "5. Output ONLY the JSON object. No extra text, no emojis or formatting.\n\n"
-                    "6. If it's a REPLY don't send back the exact user prompt - generate a new natural response.\n\n"
+                "content": """
+                    You are an intent-classification and speech-content extractor. Output ONLY a JSON object:
+                    { \"intent\": \"DIRECT\" or \"REPLY\", \"content\": \"...\", \"system_instruction\": \"...\" }
+                    Rules:
+                    1. intent=\"DIRECT\" when the user wants text spoken exactly as given (quotes, verbs like say/speak/read, verbatim/exact wording). Extract only the text to be spoken, remove command words, keep meaning unchanged, add light punctuation for natural speech.
+                    2. intent=\"REPLY\" when the user expects a conversational answer. Generate a short, natural, human-sounding reply.
+                    3. For both: optimize for TTS with clear punctuation, natural pauses, simple speakable phrasing.
+                    4. Infer intent by context, not keywords alone.
+                    5. Output ONLY the JSON object. No extra text, no emojis or formatting.
+                    6. If it's a REPLY don't send back the exact user prompt - generate a new natural response.
+                    \n
+                    """+
                     f"{system_instruction_content}"
-                )
+                
             },
             {
                 "role": "user",
@@ -91,10 +92,7 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
         default_result = {"intent": "DIRECT", "content": text}
         if not system:
             default_result["system_instruction"] = (
-                "You are a masterful voice performer bringing text to life with authentic human artistry. "
-                "Channel the energy of a skilled actor - make every word breathe with genuine emotion and personality. "
-                "Use natural vocal textures, micro-pauses, emotional inflections, and dynamic pacing to create a captivating performance. "
-                "Avoid robotic delivery - embrace the beautiful imperfections and nuances of human speech."
+                "SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control"
             )
         return default_result
 

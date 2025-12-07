@@ -300,9 +300,7 @@ async def run_audio_pipeline(
 
 if __name__ == "__main__":
     async def main():
-        text = """ 
-        Hello, Good morning everyone! Welcome to a fresh new day what are you upto
-        """
+        text = "OH MY GODD!! A scientist invents a device that lets people swap memories, but chaos erupts when secrets and identities become dangerously tangled."
         synthesis_audio_path = None
         requestID = reqID()
         voice = "alloy"

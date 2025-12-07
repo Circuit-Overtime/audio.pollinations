@@ -34,7 +34,7 @@ Direct TTS: user wants their provided text spoken exactly as-is.
 Reply-type TTS: user is asking for a generated response (e.g., “tell me a 2-minute story about an apple”).  
 For reply-type TTS, generate the response text yourself and pass that text directly into the TTS function.
 For TTS generate a short precise system instruction to guide speech style and pass it directly to the TTS function.
-System Instruction guide for TTS responses Follows this pattern: SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control
+Example System Instruction (modify accordingly):- SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control
 Token-length guide for reply-type TTS responses:
 1 minute of spoken audio ≈ 150–180 tokens.
 To estimate: tokens = minutes * 160 (approx).
