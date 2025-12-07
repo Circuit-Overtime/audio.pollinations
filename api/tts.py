@@ -34,8 +34,16 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
         base64_data = encode_audio_base64(load_audio_path)    
         clone_path = save_temp_audio(base64_data, requestID, "clone")
 
-    if not system:
-        system = "Neutral tone, clear articulation, natural pacing."
+    # if not system:
+    #     system = "Neutral tone, clear articulation, natural pacing."
+    system = """ 
+            (
+        Generate audio following instruction.
+        <|scene_desc_start|>
+        "You are an expressive neural text-to-speech model. Render all input text as natural human speech with realistic pacing, prosody, and emotional nuance. Use context-aware modulation of pitch, loudness, and rhythm. Insert short pauses at phrase boundaries and longer pauses to reflect shifts in thought or emotion. Maintain clear articulation without robotic cadence. Apply subtle variations in tone, micro-pauses, timing, and emphasis to achieve a lifelike performance. Follow the narrative intent: conversational passages should sound fluid and emotionally grounded; descriptive or reflective passages should adopt slower cadence with gentle emphasis; dramatic content should use controlled intensity with well-timed pauses. Maintain continuity of emotion across the entire passage and keep output strictly as clean spoken-text without markup."
+        <|scene_desc_end|>
+        )
+        """
         
     
     prepareChatTemplate = create_speaker_chat(
@@ -67,9 +75,9 @@ if __name__ == "__main__":
     service = manager.Service()
 
     async def main():
-        text = "Such a beautiful day to start with!! What's on your mind?"
+        text = "She sat alone in the quiet room, clutching a faded photograph. Rain tapped gently against the window, echoing the ache in her heart. Years had passed since she lost him, but the emptiness lingered, growing heavier with each memory. She whispered his name, hoping for an answer that would never come. The world moved on, but her world had stopped, frozen in the moment he said goodbye."
         requestID = "request123"
-        system = None
+        system = "Whisper the crying emotions feelings of a lost love."
         voice = "alloy"
         clone_text = None
         
