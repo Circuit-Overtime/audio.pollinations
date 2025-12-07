@@ -95,14 +95,15 @@ def audio_endpoint():
                         }
                     )
 
-            if VOICE_BASE64_MAP.get(voice):
-                named_voice_path = VOICE_BASE64_MAP.get(voice)
-                coded = encode_audio_base64(named_voice_path)
-                voice_path = save_temp_audio(coded, request_id, "clone")
+            if voice and not VOICE_BASE64_MAP.get(voice):
+                with open(voice, "r") as f:
+                    audio_data = f.read()
+                    if validate_and_decode_base64_audio(audio_data):
+                        voice_path = voice
+            elif voice and VOICE_BASE64_MAP.get(voice):
+                voice_path = VOICE_BASE64_MAP.get(voice)
             else:
-                named_voice_path = VOICE_BASE64_MAP.get("alloy")
-                coded = encode_audio_base64(named_voice_path)
-                voice_path = save_temp_audio(coded, request_id, "clone")
+                voice_path = VOICE_BASE64_MAP.get("alloy")
 
             if not text or not isinstance(text, str) or not text.strip():
                 return jsonify({"error": {"message": "Missing required 'text' parameter.", "code": 400}}), 400
@@ -207,20 +208,19 @@ def audio_endpoint():
                     return jsonify({"error": {"message": f"Invalid voice audio: {e}", "code": 400}}), 400
             elif voice_name and not voice_b64:
                 try:
-                    if VOICE_BASE64_MAP.get(voice_name):
-                        named_voice_path = VOICE_BASE64_MAP.get(voice_name)
-                        coded = encode_audio_base64(named_voice_path)
-                        voice_path = save_temp_audio(coded, request_id, "clone")
+                    if voice and not VOICE_BASE64_MAP.get(voice):
+                        with open(voice, "r") as f:
+                            audio_data = f.read()
+                            if validate_and_decode_base64_audio(audio_data):
+                                voice_path = voice
+                    elif voice and VOICE_BASE64_MAP.get(voice):
+                        voice_path = VOICE_BASE64_MAP.get(voice)
                     else:
-                        named_voice_path = VOICE_BASE64_MAP.get("alloy")
-                        coded = encode_audio_base64(named_voice_path)
-                        voice_path = save_temp_audio(coded, request_id, "clone")
+                        voice_path = VOICE_BASE64_MAP.get("alloy")
                 except Exception as e:
                     return jsonify({"error": {"message": f"Invalid voice name: {e}", "code": 400}}), 400
             else:
-                named_voice_path = VOICE_BASE64_MAP.get("alloy")
-                coded = encode_audio_base64(named_voice_path)
-                voice_path = save_temp_audio(coded, request_id, "clone")
+                voice_path = VOICE_BASE64_MAP.get("alloy")
 
             if speech_audio_b64:
                 try:
