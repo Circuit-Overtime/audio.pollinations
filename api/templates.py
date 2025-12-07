@@ -15,7 +15,9 @@ def create_speaker_chat(
     requestID: str,
     system: Optional[str] = None,
     clone_audio_path: Optional[str] = None,
-    clone_audio_transcript: Optional[str] = None
+    clone_audio_path_2: Optional[str] = None,
+    clone_audio_transcript: Optional[str] = None,
+    clone_audio_transcript_2: Optional[str] = None
 ) -> ChatMLSample:
     logger.info(f"Creating chat template for request {requestID} with text: {text}")
     messages = []
@@ -44,6 +46,12 @@ def create_speaker_chat(
     if clone_audio_path:
         with open(clone_audio_path, "r") as f:
             reference_audio_data = f.read()
+        messages.append(
+            Message(
+                role="user",
+                content="Please use this voice as a female voice",
+            )
+        )
         
         if clone_audio_transcript:
             messages.append(
@@ -60,12 +68,46 @@ def create_speaker_chat(
                 )
             )
         
-        messages.append(
-            Message(
-                role="assistant",  
-                content=[AudioContent(raw_audio=reference_audio_data, audio_url="")],
+        audio_content_list = [AudioContent(raw_audio=reference_audio_data, audio_url="")]
+        
+        if clone_audio_path_2:
+            with open(clone_audio_path_2, "r") as f:
+                reference_audio_data_2 = f.read()
+            messages.append(
+                Message(
+                    role="assistant",  
+                    content=audio_content_list,
+                )
             )
-        )
+            messages.append(
+                Message(
+                    role="user",
+                    content="Please use this voice as a male voice",
+                )
+            )
+            
+            if clone_audio_transcript_2:
+                messages.append(
+                    Message(
+                        role="user",
+                        content=normalize_text(clone_audio_transcript_2),
+                    )
+                )
+            
+            audio_content_list = [AudioContent(raw_audio=reference_audio_data_2, audio_url="")]
+            messages.append(
+                Message(
+                    role="assistant",  
+                    content=audio_content_list,
+                )
+            )
+        else:
+            messages.append(
+                Message(
+                    role="assistant",  
+                    content=audio_content_list,
+                )
+            )
 
     messages.append(
         Message(
