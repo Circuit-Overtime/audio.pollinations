@@ -24,7 +24,7 @@ async def generate_tts(text: str, requestID: str, system: Optional[str] = None, 
     if timing_stat is None:
         timing_stat = TimingStats(requestID)
 
-    if voice and not VOICE_BASE64_MAP.get(voice):
+    if voice and VOICE_BASE64_MAP.get(voice):
         clone_path = VOICE_BASE64_MAP.get(voice)
     else:
         load_audio_path = VOICE_BASE64_MAP.get("alloy")
