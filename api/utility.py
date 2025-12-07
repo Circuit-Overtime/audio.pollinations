@@ -92,21 +92,6 @@ def save_temp_audio(audio_data: str, req_id: str, usageType: str = "clone") -> s
     logger.debug(f"Saved {len(audio_data)} bytes WAV to {file_path}")
     return file_path
 
-def convert_default_voices_to_wav_audio(audio_path: str, voice_name: str) -> str:
-    base64_data = encode_audio_base64(audio_path)
-    if not base64_data:
-        raise ValueError("Empty audio data")
-
-    higgs_default_dir = "voices_b64/default_wav"
-    os.makedirs(higgs_default_dir, exist_ok=True)
-    file_path = os.path.join(higgs_default_dir, f"{voice_name}.wav")
-    converted_audio = encode_audio_base64(base64_data)
-    with open(file_path, "w") as f:
-        f.write(converted_audio)
-    logger.debug(f"Saved {len(converted_audio)} bytes WAV to {file_path}")
-    return file_path
-
-
 def cleanup_temp_file(filepath: str):
     try:
         if filepath and os.path.exists(filepath):
@@ -145,6 +130,23 @@ def convertToAudio(audio_base64_path: str, reqID: str) -> str:
     with open(audio_path, "wb") as f:
         f.write(audio_bytes)
     return audio_path
+
+def convert_default_voices_to_wav_audio(audio_path: str) -> str:
+    audio_dir = os.listdir(audio_path)
+    higgs_default_dir = "voices_b64/default_wav"
+    os.makedirs(higgs_default_dir, exist_ok=True)
+    for audio_path in audio_dir:
+        voice_name = audio_path.split(".")[0]
+        logger.debug(f"Processing audio file: {voice_name}")
+        base64_data = encode_audio_base64(f"voices_b64/raw_wav/{audio_path}")
+        if not base64_data:
+            raise ValueError("Empty audio data")
+        audio_bytes = base64.b64decode(base64_data)
+        file_path = os.path.join(higgs_default_dir, f"{voice_name}.wav")
+        with open(file_path, "wb") as f:
+            f.write(audio_bytes)
+        logger.debug(f"Saved {len(audio_bytes)} bytes WAV to {file_path}")
+
 
 def encode_audio_base64(audio_path: str) -> str:
     def is_base64(s: str) -> bool:
@@ -201,4 +203,4 @@ if __name__ == "__main__":
     # audio_b64 = encode_audio_base64(audio)
     # savedAudioBase64 = save_temp_audio(audio_b64, "test_request", "clone")
     # print(f"Saved location -- {savedAudioBase64}")
-    convert_default_voices_to_wav_audio("voices_b64/raw_wav/alloy.wav", "alloy")
+    convert_default_voices_to_wav_audio("voices_b64/raw_wav")
