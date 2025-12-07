@@ -25,6 +25,8 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
             Vocal character (gentle storyteller, confident narrator, wise mentor, excited friend, etc.)
             Human qualities (slight breathiness, micro-pauses, natural inflection, soft chuckles, etc.)
             Example System Instruction -- SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control
+            USE multiple SPEAKER0: SPEAKER1: SPEAKER2: tags if different voices or styles are implied.
+            Also apply the same speaker notation in the script for TTS synthesis.
             """
         
     payload = {
