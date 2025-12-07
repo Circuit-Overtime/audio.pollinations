@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, Response, g
 from flask_cors import CORS
 from loguru import logger
-from utility import save_temp_audio, cleanup_temp_file, validate_and_decode_base64_audio, encode_audio_base64, convertToAudio
+from utility import save_temp_audio, validate_and_decode_base64_audio, encode_audio_base64, convertToAudio
 from requestID import reqID
 from voiceMap import VOICE_BASE64_MAP
 from server import run_audio_pipeline
@@ -283,8 +283,6 @@ def audio_endpoint():
         except Exception as e:
             logger.error(f"POST error: {traceback.format_exc()}")
             return jsonify({"error": {"message": str(e), "code": 500}}), 500
-        finally:
-            cleanup_temp_file(request_id)
             
 @app.route("/health", methods=["GET"])
 def health():
