@@ -86,7 +86,7 @@ if __name__ == "__main__":
         text = "She sat alone in the quiet room, clutching a faded photograph. Rain tapped gently against the window, echoing the ache in her heart. Years had passed since she lost him, but the emptiness lingered, growing heavier with each memory. She whispered his name, hoping for an answer that would never come. The world moved on, but her world had stopped, frozen in the moment he said goodbye."
         requestID = "request123"
         system = None
-        voice = "alloy"
+        voice = "ash"
         clone_text = None
         
         def cleanup_cache():

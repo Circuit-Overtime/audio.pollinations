@@ -57,10 +57,8 @@ def normalize_text(text: str) -> str:
 def validate_and_decode_base64_audio(b64str, max_duration_sec=None):
     import base64, io, wave
 
-    # Remove whitespace/newlines
     b64str = b64str.strip().replace('\n', '').replace('\r', '')
 
-    # Fix padding if needed
     missing_padding = len(b64str) % 4
     if missing_padding:
         b64str += '=' * (4 - missing_padding)
@@ -77,7 +75,6 @@ def validate_and_decode_base64_audio(b64str, max_duration_sec=None):
     except Exception as e:
         raise Exception(f"Invalid base64 WAV audio: {e}")
 
-    # If no exception, return the original base64 string
     return b64str
 
 def save_temp_audio(audio_data: str, req_id: str, usageType: str = "clone") -> str:
@@ -85,12 +82,28 @@ def save_temp_audio(audio_data: str, req_id: str, usageType: str = "clone") -> s
         raise ValueError("Empty audio data")
 
     tmp_dir = f"/tmp/higgs/{req_id}"
+    higgs_default_dir = "voices_b64/default_wav"
+    os.makedirs(higgs_default_dir, exist_ok=True)
     os.makedirs(tmp_dir, exist_ok=True)
     file_path = os.path.join(tmp_dir, f"voice_{req_id}.wav" if usageType == "clone" else f"speech_{req_id}.wav")
 
     with open(file_path, "w") as f:
         f.write(audio_data)
     logger.debug(f"Saved {len(audio_data)} bytes WAV to {file_path}")
+    return file_path
+
+def convert_default_voices_to_wav_audio(audio_path: str, voice_name: str) -> str:
+    base64_data = encode_audio_base64(audio_path)
+    if not base64_data:
+        raise ValueError("Empty audio data")
+
+    higgs_default_dir = "voices_b64/default_wav"
+    os.makedirs(higgs_default_dir, exist_ok=True)
+    file_path = os.path.join(higgs_default_dir, f"{voice_name}.wav")
+    converted_audio = encode_audio_base64(base64_data)
+    with open(file_path, "w") as f:
+        f.write(converted_audio)
+    logger.debug(f"Saved {len(converted_audio)} bytes WAV to {file_path}")
     return file_path
 
 
@@ -146,9 +159,7 @@ def encode_audio_base64(audio_path: str) -> str:
     def is_wav_bytes(data: bytes) -> bool:
         return data[:4] == b'RIFF' and data[8:12] == b'WAVE'
 
-    # If input is base64 string
     if isinstance(audio_path, str) and (audio_path.startswith("data:audio") or is_base64(audio_path)):
-        # Remove header if present
         b64_data = audio_path
         if audio_path.startswith("data:audio"):
             b64_data = audio_path.split(",")[1]
@@ -157,7 +168,6 @@ def encode_audio_base64(audio_path: str) -> str:
             logger.info(f"Input base64 audio is already WAV format ({len(audio_bytes)} bytes)")
             return base64.b64encode(audio_bytes).decode("utf-8")
         else:
-            # Convert to WAV using pydub
             try:
                 audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
                 buf = io.BytesIO()
@@ -169,7 +179,6 @@ def encode_audio_base64(audio_path: str) -> str:
                 logger.error(f"Failed to convert base64 audio to WAV: {e}")
                 raise ValueError("Invalid base64 audio data or unsupported format")
     else:
-        # Assume it's a file path
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
         if is_wav_bytes(audio_bytes):
@@ -188,7 +197,8 @@ def encode_audio_base64(audio_path: str) -> str:
                 raise ValueError("Invalid audio file or unsupported format")
 
 if __name__ == "__main__":
-    audio = "audio.wav"
-    audio_b64 = encode_audio_base64(audio)
-    savedAudioBase64 = save_temp_audio(audio_b64, "test_request", "clone")
-    print(f"Saved location -- {savedAudioBase64}")
+    # audio = "audio.wav"
+    # audio_b64 = encode_audio_base64(audio)
+    # savedAudioBase64 = save_temp_audio(audio_b64, "test_request", "clone")
+    # print(f"Saved location -- {savedAudioBase64}")
+    convert_default_voices_to_wav_audio("voices_b64/raw_wav/alloy.wav", "alloy")
