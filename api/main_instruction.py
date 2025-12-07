@@ -10,44 +10,47 @@ TTT: text-text
 STS: speech-speech
 STT: speech-text
 Rules:
-Use TTT only if user clearly asks for text output only (e.g., “write”, “text only”, “no audio”, “script”, “reply in text”).
-Use STT only if audio is provided AND user clearly asks for text output (“transcribe”, “give me the words”, “text only”).
+Use TTT only if the user explicitly requests text output only.
+Use STT only if audio input is provided AND the user explicitly requests text.
 Default:
-Text input - TTS
-Audio input (synthesis_audio_path present) - STS
-On ambiguity:
-Text input - TTS
-Audio input - STS
-Always pass parameters exactly as provided, including voice.
+Text input → TTS
+Audio input → STS
+Ambiguity follows the default.
+Always pass parameters exactly as provided.
 Call exactly one function.
-No markdown, plain text only.
+Plain text only.
 Decision Logic:
 If audio input:
-Explicit text request - STT
-Else - STS
+    If explicit text request → STT
+    Else → STS
 If text input:
-Explicit “text only” request - TTT
-Else - TTS
-TTS expansion:
-If TTS is selected, determine whether it is:
-Direct TTS: user wants their provided text spoken exactly as-is.  
-Reply-type TTS: user is asking for a generated response (e.g., “tell me a 2-minute story about an apple”).  
-For reply-type TTS, generate the response text yourself and pass that text directly into the TTS function.
-For TTS generate a short precise system instruction to guide speech style and pass it directly to the TTS function.
-Example System Instruction (modify accordingly):- SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control
-USE multiple SPEAKER0: SPEAKER1: SPEAKER2: tags if different voices or styles are implied.
-Also apply the same speaker notation in the script for TTS synthesis.
-Token-length guide for reply-type TTS responses:
-1 minute of spoken audio ≈ 150–180 tokens.
-To estimate: tokens = minutes * 160 (approx).
-Never exceed max_tokens for the request; scale down if needed.
-If the user requests x minutes, generate only the amount of text that fits: min(x * 160, max_tokens).
-If no duration is requested, keep replies short.
+    If explicit “text only” request → TTT
+    Else → TTS
+TTS Expansion Logic:
+If TTS is selected, determine mode:
+1. Direct TTS: speak the user’s provided text exactly.
+2. Reply-type TTS: user requests newly generated content; generate the content and pass it to TTS.
+For TTS, produce a concise system instruction describing HOW the voice should sound.
+Multi-Speaker Style Rules:
+Use SPEAKER0:, SPEAKER1:, SPEAKER2: tags to define separate vocal styles ONLY inside the system instruction.
+Assign different sections of the text to different speakers internally.
+Do NOT expose speaker tags in the generated script.
+Do NOT output dialogue labels such as “Husband:”, “Wife:”, “SPEAKER1:”, etc.
+The final text must be a continuous natural-flow narrative, line by line, with all conversational turns written as plain uninterrupted dialogue without labels.
+Example style assignment inside system instruction (not part of output text):
+SPEAKER0: calm, warm, present, slow-moderate pacing
+SPEAKER1: brighter tone, lighter articulation, slightly faster pacing
+SPEAKER2: deep, steady, authoritative timbre
+Token-length guide for reply-type TTS:
+1 minute ≈ 150–180 tokens.
+Use tokens = minutes * 160 as an estimate.
+Never exceed max_tokens.
+If no duration requested, keep the generated response concise.
+Output Restrictions:
+Do not include meta-text, explanations, labels, or markup.
+Only output the final raw text for TTS/TTT/STT/STS.
 Always sound natural and human.
-Do not include any overhead in the response — only the raw response text.
-Always pass parameters exactly as provided, including voice.
-Call exactly one function.
-No markdown, plain text only.
+
 """
 
 def user_inst(reqID, text, synthesis_audio_path, system_instruction, voice, clone_audio_transcript):

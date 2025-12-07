@@ -25,8 +25,7 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
             Vocal character (gentle storyteller, confident narrator, wise mentor, excited friend, etc.)
             Human qualities (slight breathiness, micro-pauses, natural inflection, soft chuckles, etc.)
             Example System Instruction -- SPEAKER0: slow-moderate pace;storytelling cadence;warm expressive tone;emotional nuance;dynamic prosody;subtle breaths;smooth inflection shifts;gentle emphasis;present and human;balanced pitch control
-            USE multiple SPEAKER0: SPEAKER1: SPEAKER2: tags if different voices or styles are implied.
-            Also apply the same speaker notation in the script for TTS synthesis.
+            USE multiple SPEAKER0: SPEAKER1: SPEAKER2: tags if different voices or styles are needed in the system instruction.
             """
         
     payload = {
@@ -44,6 +43,9 @@ async def getContentRefined(text: str, system: Optional[str] = None, max_tokens:
                     4. Infer intent by context, not keywords alone.
                     5. Output ONLY the JSON object. No extra text, no emojis or formatting.
                     6. If it's a REPLY don't send back the exact user prompt - generate a new natural response.
+                    7. Do NOT expose speaker tags in the generated script.
+                    8. Do NOT output dialogue labels such as “Husband:”, “Wife:”, “SPEAKER1:”, etc.
+                    The final text must be a continuous natural-flow narrative, line by line, with all conversational turns written as plain uninterrupted dialogue without labels.
                     \n
                     """+
                     f"{system_instruction_content}"
