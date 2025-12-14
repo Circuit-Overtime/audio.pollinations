@@ -27,15 +27,12 @@ If text input:
     If explicit “text only” request → TTT
     Else → TTS
 TTS Expansion Logic:
-If TTS is selected, determine mode:
-1. Direct TTS: speak the user’s provided text exactly.
+If TTS is selected, determine mode:\
+1. Direct TTS: speak the user’s provided text exactly but remove any labels or overhead instructions
+pass the exact text the user wants to be read aloud to TTS.
 2. Reply-type TTS: user requests newly generated content; generate the content and pass it to TTS.
 For TTS, produce a concise system instruction describing HOW the voice should sound.
-Multi-Speaker Style Rules:
-Use SPEAKER0:, SPEAKER1:, SPEAKER2: tags to define separate vocal styles ONLY inside the system instruction.
-Assign different sections of the text to different speakers internally.
-Do NOT expose speaker tags in the generated script.
-Do NOT output dialogue labels such as “Husband:”, “Wife:”, “SPEAKER1:”, etc.
+Expand some abbreviations for natural flow (e.g., "omg" to "oh my god" and so on).
 The final text must be a continuous natural-flow narrative, line by line, with all conversational turns written as plain uninterrupted dialogue without labels.
 Example style assignment inside system instruction (not part of output text):
 SPEAKER0: calm, warm, present, slow-moderate pacing

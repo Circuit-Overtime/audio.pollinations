@@ -22,13 +22,13 @@ payload = {
         {
             "role": "system",
             "content": [
-                {"type": "text", "text": "You generate audio from the users input"}
+                {"type": "text", "text": "An extremely excited person talking about a new technology product."}
             ]
         },
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "Verbtim: Hello how are you doing today? I hope you are doing well."},
+                {"type": "text", "text": "Verbtim: Omg Omg omg!! This is amazing! I can't believe it actually works."},
                 {
                     "type": "voice",
                     "voice": {
